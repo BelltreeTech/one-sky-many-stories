@@ -140,15 +140,20 @@ test.describe('portrait discoveries', () => {
       const start = cameraPosition();
       const until = performance.now() + 1300;
       let cameraDrift = 0;
+      const tail = [amplitude()];
       while (performance.now() < until) {
         await frame();
+        tail.push(amplitude());
         const now = cameraPosition();
         cameraDrift = Math.max(cameraDrift, ...now.map((v, i) => Math.abs(v - start[i])));
       }
-      return { peak, moving, last: amplitude(), wind: wind.dataset.wind, cameraDrift, initialY, travelled, stopY, endY: scrollY };
+      return { peak, moving, tail, last: amplitude(), wind: wind.dataset.wind, cameraDrift, initialY, travelled, stopY, endY: scrollY };
     });
     expect(rest.moving, 'The scroll activated the secondary movement').toBe(true);
     expect(rest.peak, 'Clouds, hair or sleeves visibly moved').toBeGreaterThan(0.02);
+    const tailPeak = Math.max(...rest.tail);
+    expect(rest.tail.some(value => value > .01 && value < tailPeak - .01),
+      'A painted edge is still moving through intermediate positions after the camera stops').toBe(true);
     expect(rest.wind).toBe('still');
     expect(rest.last, 'The residual movement settles completely').toBeLessThan(0.01);
     expect(rest.cameraDrift, 'Camera drift once scrolling ended (CSS pixels)').toBeLessThan(0.1);
