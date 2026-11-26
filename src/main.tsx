@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useLayoutEffect } from 'react'
+import { StrictMode, useEffect, useLayoutEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import story from './data/story.json'
 import { SceneRenderer } from './components/SceneRenderer'
@@ -10,8 +10,31 @@ import { refreshScenes } from './engine/animationTimeline'
 import './styles/reader.css'
 import './styles/portrait.css'
 
+function useCoverPriority(portrait: boolean) {
+  const [ready, setReady] = useState(() => !!window.scrollY || !!location.hash)
+  useLayoutEffect(() => {
+    if (ready) return
+    const cover = document.querySelector<HTMLImageElement>('.opening .scene-image')
+    const release = () => setReady(true)
+    if (!cover || window.scrollY || (cover.complete && cover.naturalWidth)) {
+      release()
+      return
+    }
+    cover.addEventListener('load', release, { once: true })
+    cover.addEventListener('error', release, { once: true })
+    window.addEventListener('scroll', release, { passive: true, once: true })
+    return () => {
+      cover.removeEventListener('load', release)
+      cover.removeEventListener('error', release)
+      window.removeEventListener('scroll', release)
+    }
+  }, [portrait, ready])
+  return ready
+}
+
 function App() {
   const portrait = usePortraitScreen()
+  const prefetch = useCoverPriority(portrait)
   const place = useScrollController(portrait)
   const current = place.scene
   const motion = useMotionEnabled()
@@ -35,7 +58,7 @@ function App() {
   }, [])
   return <>
     <ReadingHeader current={current} total={story.scenes.length} portrait={portrait} />
-    <main className={portrait ? 'portrait-reader' : undefined}>{story.scenes.map(scene => <SceneRenderer key={scene.id} scene={scene} motion={motion} portrait={portrait} />)}</main>
+    <main className={portrait ? 'portrait-reader' : undefined}>{story.scenes.map(scene => <SceneRenderer key={scene.id} scene={scene} motion={motion} portrait={portrait} prefetch={prefetch || scene.id === 1} />)}</main>
     <ParticleEngine scene={portrait ? current : undefined} running={motion && (!portrait || ![7, 8, 11, 14, 15].includes(current))} />
   </>
 }

@@ -4,10 +4,11 @@ import { attachTimeline } from '../engine/animationTimeline'
 import { attachPortraitTimeline } from '../engine/portraitTimeline'
 import { PortraitScene } from './PortraitScene'
 
-export const SceneRenderer = memo(function SceneRenderer({ scene, motion, portrait }: { scene: Scene; motion: boolean; portrait: boolean }) {
+export const SceneRenderer = memo(function SceneRenderer({ scene, motion, portrait, prefetch }: { scene: Scene; motion: boolean; portrait: boolean; prefetch: boolean }) {
   const ref = useRef<HTMLElement>(null)
   const first = scene.id === 1
-  const [near, setNear] = useState(first)
+  const [nearby, setNear] = useState(first)
+  const near = prefetch && nearby
   const [visible, setVisible] = useState(first)
   const chapter = chapters[scene.chapter - 1]
   const chapterOpener = (scene.id - 1) % 4 === 0
