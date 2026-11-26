@@ -11,10 +11,11 @@ if (!existsSync(join(dist, 'index.html'))) {
   throw new Error('Run the Vite production build before packaging.');
 }
 
-const required = new Set(['index.html', 'star.svg', 'atmosphere/night-sky.webp']);
+const required = new Set(['index.html', 'star.svg', 'atmosphere/night-sky.webp', 'portrait/telescope.webp', 'portrait/ridge.webp']);
 for (const scene of story.scenes) {
   required.add(scene.image);
   required.add(`atmosphere/${String(scene.id).padStart(2, '0')}.webp`);
+  required.add(`portrait/${String(scene.id).padStart(2, '0')}.webp`);
   if (scene.portrait) required.add(scene.portrait.image);
 }
 

@@ -1,0 +1,118 @@
+/* Native-flow beats pass over full-height plates. All near plates share one
+   background stacking context; the text never fades with the illustration. */
+.portrait-reader {
+  isolation: isolate; position: relative; background: #101428;
+}
+.portrait-reader .portrait-scene {
+  isolation: auto; overflow: visible; background: transparent;
+}
+.portrait-scene::before { content: none; }
+.portrait-stage {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;
+  opacity: 0; visibility: hidden; background: #151a2b;
+}
+.opening .portrait-stage { opacity: 1; visibility: visible; }
+.scene-atmosphere {
+  position: absolute; inset: 0;
+  background: linear-gradient(0deg,#131327b8,transparent 52%,#0b102b60), var(--atmosphere) center / cover;
+}
+.portrait-camera {
+  width: 100%; height: 100%; display: grid; place-items: center;
+  transform-origin: var(--focus); pointer-events: none;
+}
+.portrait-sheet {
+  position: relative; width: min(100%,calc(100vh * var(--portrait-ratio)));
+  width: min(100%,calc(100dvh * var(--portrait-ratio)));
+  aspect-ratio: var(--portrait-ratio);
+  mask-image: linear-gradient(0deg,transparent,#000 6%,#000 95%,transparent),
+              linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent);
+  mask-composite: intersect;
+}
+.portrait-sheet .scene-image { width: 100%; height: 100%; object-fit: contain; }
+.portrait-stage::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(0deg,#080d20b8,transparent 31%,transparent 80%,#090e2561);
+}
+.ridge-alignment {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  --portrait-ratio: 0.5628;
+}
+.ridge-bridge {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
+  opacity: 0; pointer-events: none;
+}
+.ridge-bridge[data-ready="true"] { opacity: var(--ridge,0); }
+.telescope-view {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  opacity: 0; pointer-events: none;
+  mask-image: radial-gradient(circle farthest-corner at 46% 48%,
+    black max(0%,calc(var(--aperture,0) * 114% - 5%)),transparent calc(var(--aperture,0) * 114% + 3%));
+  transform-origin: 46% 48%;
+  transform: scale(calc(1 + .03 * var(--lens, 0)));
+}
+.telescope-view[data-ready="true"] { opacity: var(--lens-light,0); }
+
+.portrait-story { position: relative; }
+.portrait-heading {
+  position: absolute; z-index: 1; top: max(74px,calc(env(safe-area-inset-top) + 60px));
+  padding-inline: max(var(--gutter),env(safe-area-inset-left));
+  width: 100%; max-width: 48rem; left: 50%; transform: translateX(-50%);
+  text-shadow: 0 2px 14px #060918;
+}
+.portrait-heading .chapter-line { justify-content: flex-start; font-size: 10px; }
+.portrait-heading h1 {
+  margin: 12px 0 0 -.035em; font-size: clamp(3.55rem,14vw,6.3rem); line-height: .86;
+}
+.portrait-heading h1 em { white-space: normal; }
+.portrait-heading h2:not(.visually-hidden) {
+  margin-top: .35em; font-size: clamp(2rem,7vw,3.5rem); text-wrap: balance;
+}
+.portrait-passage {
+  position: relative; font-size: clamp(1.125rem,calc(.97rem + .76vw),1.48rem);
+  line-height: 1.54; font-weight: 400; text-wrap: pretty; text-shadow: 0 1px 4px #060b18;
+}
+.reading-beat {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  min-height: 100vh; min-height: 100svh; min-height: 100dvh;
+  padding: max(160px,24svh) max(var(--gutter),env(safe-area-inset-right))
+           max(92px,calc(env(safe-area-inset-bottom) + 73px)) max(var(--gutter),env(safe-area-inset-left));
+}
+.opening .reading-beat { padding-top: max(248px,36svh); }
+.beat-text {
+  display: block; position: relative; isolation: isolate; width: min(100%,39ch);
+  margin-inline: auto; color: #fff6e8;
+}
+.beat-text::before {
+  content: ''; position: absolute; z-index: -1; pointer-events: none;
+  inset: -3.5rem calc((100% - 100vw)/2) -4.5rem;
+  background: linear-gradient(180deg,transparent,#080d20d1 3.5rem,#080d20dc calc(100% - 4.5rem),transparent);
+}
+.portrait-end { position: absolute; bottom: max(68px,calc(env(safe-area-inset-bottom) + 57px)); width: 100%; text-align: center; color: var(--gold); font-size: 11px; }
+
+/* These masked copies move only a loose edge of the completed plate; eyes,
+   faces and bodies stay anchored to the reader's native scroll position. */
+.afterglow, .afterglow i { position: absolute; inset: 0; pointer-events: none; }
+.afterglow { --gust: 0; }
+.afterglow[data-wind="up"] { --gust: 1; }
+.afterglow[data-wind="down"] { --gust: -1; }
+.afterglow i {
+  background: var(--plate) center / 100% 100% no-repeat;
+  transition: transform 780ms cubic-bezier(.18,.75,.24,1);
+}
+.afterglow .drifting-cloud {
+  mask-image: radial-gradient(ellipse 17% 4% at 77% 11%, black 32%, transparent 99%);
+  transform: translateX(calc(var(--gust) * 3px));
+}
+.afterglow .sleeve-tip {
+  mask-image: radial-gradient(ellipse 9% 4% at 13% 65%, black 18%, transparent 95%);
+  transform: translate(calc(var(--gust) * 1.9px),calc(var(--gust) * -.8px));
+}
+.afterglow .hair-tip {
+  mask-image: radial-gradient(ellipse 7% 3% at 49% 40%, black 14%, transparent 94%);
+  transform: translateX(calc(var(--gust) * 1.8px));
+}
+@media (prefers-reduced-motion: reduce) {
+  .portrait-camera, .telescope-view { transform: none !important; }
+  .telescope-view { mask-image: none; }
+  .afterglow { display: none; }
+}
