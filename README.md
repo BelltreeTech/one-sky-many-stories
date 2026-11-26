@@ -2,7 +2,7 @@
 
 全20場面を縦にスクロールして読む英語絵本。Luna、Leo、Noahが、同じ星団をめぐる日本、ギリシャ、ニュージーランドの物語を語る。v0.1 Foundation の基準画面は iPhone 16 縦持ちの393 × 852 CSS px。
 
-[スマートフォンの冒頭画面](docs/screenshots/iphone-01.webp) · [デスクトップの冒頭画面](docs/screenshots/desktop-opening.webp) · [公式スキルの導入記録](docs/tooling.md)
+[iPhoneで絵本を読む](https://belltreetech.github.io/one-sky-many-stories/) · [スマートフォンの冒頭画面](docs/screenshots/iphone-01.webp) · [デスクトップの冒頭画面](docs/screenshots/desktop-opening.webp) · [公式スキルの導入記録](docs/tooling.md)
 
 ## 起動
 
@@ -86,6 +86,6 @@ npm test
 
 開発用ブランチは `feature/foundation`。[CI](.github/workflows/ci.yml) がpush・PR時に依存関係の復元、型検査、ビルド、WebKit／Chromium試験を実行する。[Pagesワークフロー](.github/workflows/pages.yml) はmainから手動で起動し、同じ検査を通過した配布物をデプロイする。2本のワークフローはactionlintでも検査した。
 
-公開先アカウントと公開許可が確定した後、GitHubのPagesのビルド元を **GitHub Actions** に設定し、mainから **Publish GitHub Pages** を実行する。通常のプロジェクトサイトではリポジトリ名からbase pathを決める。ドメイン直下用のローカルビルドには `VITE_BASE_PATH=/ npm run build` が使える。[Viteの静的デプロイ](https://vite.dev/guide/static-deploy.html#github-pages)
+公開先は [BelltreeTech の GitHub Pages](https://belltreetech.github.io/one-sky-many-stories/)。このリポジトリではPagesのビルド元を **GitHub Actions** に設定している。更新版を公開するにはmainから **Publish GitHub Pages** を実行する。通常のプロジェクトサイトではリポジトリ名からbase pathを決める。ドメイン直下用のローカルビルドには `VITE_BASE_PATH=/ npm run build` が使える。[Viteの静的デプロイ](https://vite.dev/guide/static-deploy.html#github-pages)
 
-[配布物の検査](scripts/package-site.mjs) が絵・背景・フォント・JS・CSS・アイコン・ライセンスを確認する。原本PDF、原JPEG、制作スキル、スクリーンショットは配布対象外。今回の確認はローカルの本番ビルドまでで、リモートリポジトリ作成とGitHub上でのCI実行・公開は保留している。
+[配布物の検査](scripts/package-site.mjs) が絵・背景・フォント・JS・CSS・アイコン・ライセンスを確認する。原本PDF、原JPEG、制作スキル、スクリーンショットは配布対象外。GitHub上での検査とデプロイの履歴は [Actions](https://github.com/BelltreeTech/one-sky-many-stories/actions/workflows/pages.yml) に残る。
