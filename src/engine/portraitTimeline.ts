@@ -48,6 +48,12 @@ export function attachPortraitTimeline(scene: HTMLElement, id: number, motion: b
       scale += .048 * between(progress, .3, .82)
     }
     camera.style.transform = 'translateY(' + dy.toFixed(4) + '%) scale(' + scale.toFixed(5) + ')'
+    if (id === 4 || id === 10) {
+      // The pre-memory sky and the empty ridge share each painting's camera
+      // and coordinates. Scrolling back undoes the same dissolve.
+      const reveal = between(1 - bounds.top / frame, .47, .96)
+      scene.style.setProperty('--background-exposure', String(1 - reveal))
+    }
     if (direction.entry) {
       camera.style.opacity = String(.78 + .22 * between(frame - bounds.top, 0, frame * .60))
     }
@@ -75,6 +81,7 @@ export function attachPortraitTimeline(scene: HTMLElement, id: number, motion: b
       wind.dataset.wind = 'still'
       wind.style.removeProperty('--gust')
     }
+    scene.style.removeProperty('--background-exposure')
     lens?.style.removeProperty('--aperture')
     camera.style.removeProperty('opacity')
     camera.style.removeProperty('transform')

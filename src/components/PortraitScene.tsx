@@ -91,6 +91,8 @@ export function PortraitScene({ scene, near }: { scene: Scene; near: boolean }) 
             if (fallback) setUnavailableAt(attempt)
             else markFailed()
           }} />
+        {scene.id === 4 && !fallback && <DecodedExposure file="before-memory" className="registered-exposure memory-sky" near={near} />}
+        {scene.id === 10 && !fallback && <DecodedExposure file="ridge" className="registered-exposure ridge-bridge" near={near} />}
         {scene.id === 11 && <span className="afterglow" data-wind="still" hidden={!near || fallback}
           style={{ '--plate': near && !fallback ? 'url(' + src + ')' : undefined } as CSSProperties} aria-hidden="true">
           <i className="drifting-cloud" /><i className="sleeve-tip" /><i className="hair-tip" />
@@ -107,9 +109,6 @@ export function PortraitScene({ scene, near }: { scene: Scene; near: boolean }) 
     </header>}
     <p className="passage portrait-passage">{portraitBeats(scene).map((part, index) =>
       <span className="reading-beat" data-beat={index + 1} key={index}>
-        {scene.id === 10 && <span className="ridge-alignment">
-          <DecodedExposure file="ridge" className="ridge-bridge" near={near} />
-        </span>}
         {!index && !asksBeforeArt && art}
         {scene.id === 8 && index === 1 && <span className="lens-field">
           <DecodedExposure file="telescope" className="telescope-view" near={near}
