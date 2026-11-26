@@ -20,7 +20,8 @@ export function preserveReadingHistory() {
   }
 
   const saved = history.state?.[entryKey]
-  let active = true
+  const restoration = new AbortController()
+  const cancelRestore = () => restoration.abort()
   if (saved?.address === address && saved.y > 0 && Number.isFinite(saved.progress)) {
     const section = document.getElementById(saved.scene)
     const anchor = section?.querySelector<HTMLElement>('[data-beat="' + Number(saved.beat) + '"]') ?? section
@@ -30,10 +31,21 @@ export function preserveReadingHistory() {
         const top = scrollY + rect.top + rect.height * saved.progress - innerHeight / 2
         window.scrollTo({ top, behavior: 'instant' })
       }
+      // On iPad Safari the first layout can use fallback fonts and the browser
+      // can still be settling its own offset when document.fonts.ready fires.
+      // Recompute on the first displayed frame, unless the reader intervened.
+      const options = { once: true, passive: true, signal: restoration.signal }
+      for (const input of ['pointerdown', 'wheel', 'keydown']) window.addEventListener(input, cancelRestore, options)
+      window.addEventListener('pageshow', event => {
+        if (!event.persisted) requestAnimationFrame(() => {
+          if (!restoration.signal.aborted) restore()
+          cancelRestore()
+        })
+      }, options)
       restore()
       const restored = scrollY
       void document.fonts.ready.then(() => {
-        if (active && Math.abs(scrollY - restored) < 2) restore()
+        if (!restoration.signal.aborted && Math.abs(scrollY - restored) < 2) restore()
       })
     }
   }
@@ -41,7 +53,7 @@ export function preserveReadingHistory() {
   window.addEventListener('pagehide', remember)
   document.addEventListener('visibilitychange', whenHidden)
   return () => {
-    active = false
+    cancelRestore()
     window.removeEventListener('pagehide', remember)
     document.removeEventListener('visibilitychange', whenHidden)
   }
