@@ -51,7 +51,11 @@ export function attachPortraitTimeline(scene: HTMLElement, id: number, motion: b
     if (id === 4 || id === 10) {
       // The pre-memory sky and the empty ridge share each painting's camera
       // and coordinates. Scrolling back undoes the same dissolve.
-      const reveal = between(1 - bounds.top / frame, .47, .96)
+      // In the Japanese memory Leo's book sits below the middle of the
+      // painting. On a broad iPad it must enter before his story appears.
+      const enter = id === 4 ? Math.max(frame * .47, bounds.height * .60 + 12) : frame * .47
+      const end = Math.max(frame * .96, enter + frame * .22)
+      const reveal = between(frame - bounds.top, enter, end)
       scene.style.setProperty('--background-exposure', String(1 - reveal))
     }
     if (direction.entry) {
