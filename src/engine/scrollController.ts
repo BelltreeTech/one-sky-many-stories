@@ -26,6 +26,26 @@ function subscribePortrait(notify: () => void) {
   return () => portraitScreen.removeEventListener('change', notify)
 }
 
+type ZoomAnchor = { element: HTMLElement; progress: number; viewportFraction: number }
+
+// Prefer a readable paragraph on screen. Between paragraphs, hold the point in
+// the illustration that was passing through the center of the screen.
+function captureZoomAnchor(steps: NodeListOf<HTMLElement>, index: number, height: number): ZoomAnchor {
+  let element = steps[index]
+  let nearest = Infinity
+  for (let i = Math.max(0, index - 1); i <= Math.min(steps.length - 1, index + 1); i++) {
+    const text = steps[i].querySelector<HTMLElement>('.beat-text, .narration .passage')
+    if (!text) continue
+    const rect = text.getBoundingClientRect()
+    const visible = Math.min(height, rect.bottom) - Math.max(0, rect.top)
+    const distance = Math.abs((rect.top + rect.bottom) / 2 - height / 2)
+    if (visible >= Math.min(24, rect.height / 2) && distance < nearest) { element = text; nearest = distance }
+  }
+  const rect = element.getBoundingClientRect()
+  const point = (Math.max(0, rect.top) + Math.min(height, rect.bottom)) / 2
+  return { element, progress: (point - rect.top) / Math.max(1, rect.height), viewportFraction: point / height }
+}
+
 // Follow the part of the strip passing through the viewport center.
 export function useScrollController(portrait: boolean) {
   const [place, setPlace] = useState({ scene: 1, beat: 1 })
@@ -51,10 +71,24 @@ export function useScrollController(portrait: boolean) {
     }
     const steps = document.querySelectorAll<HTMLElement>(portrait ? '[data-beat]' : '[data-scene]')
     let frame = 0
+    const viewport = window.visualViewport
+    let zoom: { width: number; scale: number; outer: number; anchor: ZoomAnchor } | undefined
     function locate() {
       frame = 0
       if (!steps.length || portraitScreen.matches !== portrait) return
-      const middle = window.innerHeight / 2
+      const height = window.innerHeight
+      const middle = height / 2
+      const width = document.documentElement.clientWidth
+      // Safari Page Zoom changes *both* layout width and viewport scale in a
+      // fixed window. Pinching changes only the visual viewport. During a menu
+      // step Safari can emit a scroll with the new CSS width but the old scale.
+      const settled = viewport && Math.abs(viewport.width - width) < 2
+      if (settled && zoom && width !== zoom.width && Math.abs(viewport.scale - zoom.scale) > .01
+          && Math.abs(window.outerWidth - zoom.outer) < 2 && Math.abs(width * viewport.scale - zoom.width * zoom.scale) < 3) {
+        const { element, progress, viewportFraction } = zoom.anchor
+        const bounds = element.getBoundingClientRect()
+        window.scrollBy({ top: bounds.top + bounds.height * progress - height * viewportFraction, behavior: 'instant' })
+      }
       let lo = 0
       let hi = steps.length - 1
       while (lo < hi) {
@@ -62,6 +96,7 @@ export function useScrollController(portrait: boolean) {
         if (steps[mid].getBoundingClientRect().bottom <= middle) lo = mid + 1
         else hi = mid
       }
+      if (settled) zoom = { width, scale: viewport.scale, outer: window.outerWidth, anchor: captureZoomAnchor(steps, lo, height) }
       const step = steps[lo]
       const section = step.closest<HTMLElement>('[data-scene]')!
       const scene = Number(section.dataset.scene)
@@ -81,11 +116,13 @@ export function useScrollController(portrait: boolean) {
     steps.forEach(step => resize.observe(step))
     window.addEventListener('scroll', queue, { passive: true })
     window.addEventListener('resize', queue)
+    viewport?.addEventListener('resize', queue)
     locate()
     return () => {
       resize.disconnect()
       window.removeEventListener('scroll', queue)
       window.removeEventListener('resize', queue)
+      viewport?.removeEventListener('resize', queue)
       cancelAnimationFrame(frame)
     }
   }, [portrait])
