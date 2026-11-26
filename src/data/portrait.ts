@@ -34,6 +34,15 @@ export const portraitDirections: Record<number, PortraitDirection> = {
   20: { focus: '50% 38%', start: 1, end: .971, rise: -.016 },
 }
 
+// Reserve the real strip height before a lazy image arrives, including when its
+// landscape fallback has a different aspect ratio.
+export function portraitDimensions(id: number): [number, number] {
+  if ([2, 9, 10, 11, 13, 15].includes(id)) return [941, 1672]
+  if (id === 4) return [1086, 1448]
+  if (id === 12) return [1051, 1496]
+  return [992, 1586]
+}
+
 export function portraitBeats(scene: Scene): string[] {
   const marker = portraitDirections[scene.id]?.nextBeat
   const index = marker ? scene.text.indexOf(marker) : -1

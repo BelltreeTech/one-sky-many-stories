@@ -1,9 +1,15 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
-export function ParticleEngine({ running }: { running: boolean }) {
+export function ParticleEngine({ running, scene }: { running: boolean; scene?: number }) {
+  const [host, setHost] = useState<HTMLElement | null>(null)
+  useLayoutEffect(() => {
+    setHost(scene ? document.querySelector<HTMLElement>('[data-scene="' + scene + '"] .portrait-stage') : null)
+  }, [scene])
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
-    const canvas = ref.current!
+    const canvas = ref.current
+    if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx || !running) {
       canvas.dataset.running = 'false'
@@ -45,14 +51,28 @@ export function ParticleEngine({ running }: { running: boolean }) {
     const observer = new ResizeObserver(resize)
     observer.observe(canvas)
     resize()
-    canvas.dataset.running = 'true'
-    frame = requestAnimationFrame(draw)
+    let drawing = false
+    function setVisible(visible: boolean) {
+      if (drawing === visible) return
+      drawing = visible
+      canvas!.dataset.running = String(visible)
+      if (visible) frame = requestAnimationFrame(draw)
+      else cancelAnimationFrame(frame)
+    }
+    const visibility = host ? new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting)) : null
+    if (visibility) {
+      canvas.dataset.running = 'false'
+      visibility.observe(canvas)
+    } else setVisible(true)
     return () => {
       cancelAnimationFrame(frame)
+      visibility?.disconnect()
       observer.disconnect()
       canvas.dataset.running = 'false'
       ctx.clearRect(0, 0, width, height)
     }
-  }, [running])
-  return <canvas ref={ref} className="starlight" aria-hidden="true" />
+  }, [running, host, scene])
+  const surface = <canvas ref={ref} className="starlight" aria-hidden="true" />
+  if (scene) return host ? createPortal(surface, host) : null
+  return surface
 }

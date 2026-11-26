@@ -26,11 +26,11 @@ function subscribePortrait(notify: () => void) {
   return () => portraitScreen.removeEventListener('change', notify)
 }
 
-// The same center line drives the folio, navigation and spoken passage.
+// Follow the part of the strip passing through the viewport center.
 export function useScrollController(portrait: boolean) {
   const [place, setPlace] = useState({ scene: 1, beat: 1 })
-  const location = useRef(place)
-  const lastPortrait = useRef(place)
+  const location = useRef({ ...place, fraction: .5, sceneFraction: .5 })
+  const lastPortrait = useRef(location.current)
   const previousOrientation = useRef(portrait)
   useLayoutEffect(() => {
     if (previousOrientation.current !== portrait) {
@@ -40,7 +40,14 @@ export function useScrollController(portrait: boolean) {
       const section = document.getElementById('scene-' + String(saved.scene).padStart(2, '0'))
       const savedBeat = lastPortrait.current.scene === saved.scene ? lastPortrait.current.beat : 1
       const target = portrait ? section?.querySelector('[data-beat="' + savedBeat + '"]') : section
-      target?.scrollIntoView({ block: 'start', behavior: 'instant' })
+      if (target) {
+        const bounds = target.getBoundingClientRect()
+        const fraction = portrait && lastPortrait.current.scene === saved.scene
+          ? lastPortrait.current.fraction : saved.sceneFraction
+        // A short answer might be only three lines tall. Bringing its top to
+        // the top edge would put the viewport center in the following scene.
+        window.scrollTo({ top: scrollY + bounds.top + bounds.height * fraction - innerHeight / 2, behavior: 'instant' })
+      }
       previousOrientation.current = portrait
     }
     const steps = document.querySelectorAll<HTMLElement>(portrait ? '[data-beat]' : '[data-scene]')
@@ -57,9 +64,14 @@ export function useScrollController(portrait: boolean) {
         else hi = mid
       }
       const step = steps[lo]
-      const scene = Number(step.closest<HTMLElement>('[data-scene]')?.dataset.scene)
+      const section = step.closest<HTMLElement>('[data-scene]')!
+      const scene = Number(section.dataset.scene)
       const beat = Number(step.dataset.beat ?? 1)
-      location.current = { scene, beat }
+      const positionWithin = (element: HTMLElement) => {
+        const bounds = element.getBoundingClientRect()
+        return Math.max(.01, Math.min(.99, (middle - bounds.top) / Math.max(1, bounds.height)))
+      }
+      location.current = { scene, beat, fraction: positionWithin(step), sceneFraction: positionWithin(section) }
       if (portrait) lastPortrait.current = location.current
       setPlace(old => old.scene === scene && old.beat === beat ? old : { scene, beat })
     }

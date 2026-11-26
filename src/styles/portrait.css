@@ -1,93 +1,112 @@
-/* Native-flow beats pass over full-height plates. All near plates share one
-   background stacking context; the text never fades with the illustration. */
+/* Each illustration reserves its real aspect ratio in the reading strip.
+   Text, pictures and the optical interludes move with the native document. */
+.strip-masthead {
+  position: relative; inset: auto; padding: max(12px,env(safe-area-inset-top)) var(--gutter) 4px;
+  background: #0c1224; z-index: auto;
+}
+.strip-masthead .folio { color: var(--gold); }
 .portrait-reader {
-  isolation: isolate; position: relative; background: #101428;
+  position: relative; background: #0c1224;
 }
 .portrait-reader .portrait-scene {
-  isolation: auto; overflow: visible; background: transparent;
+  isolation: isolate; overflow: clip; background: transparent;
 }
 .portrait-scene::before { content: none; }
-.portrait-stage {
-  position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;
-  opacity: 0; visibility: hidden; background: #151a2b;
+.portrait-story {
+  --overlap: clamp(32px,12vw,96px);
+  --breath: clamp(28px,9vw,72px);
+  position: relative; max-width: 58rem; margin-inline: auto;
 }
-.opening .portrait-stage { opacity: 1; visibility: visible; }
-.scene-atmosphere {
-  position: absolute; inset: 0;
-  background: linear-gradient(0deg,#131327b8,transparent 52%,#0b102b60), var(--atmosphere) center / cover;
+.portrait-scene:is([data-scene="3"],[data-scene="12"],[data-scene="18"]) .portrait-story {
+  --overlap: clamp(24px,8vw,60px);
+  --breath: clamp(18px,5vw,40px);
 }
-.portrait-camera {
-  width: 100%; height: 100%; display: grid; place-items: center;
-  transform-origin: var(--focus); pointer-events: none;
+.portrait-scene:is([data-scene="4"],[data-scene="13"],[data-scene="20"]) .portrait-story {
+  --breath: clamp(44px,13vw,90px);
 }
-.portrait-sheet {
-  position: relative; width: min(100%,calc(100vh * var(--portrait-ratio)));
-  width: min(100%,calc(100dvh * var(--portrait-ratio)));
-  aspect-ratio: var(--portrait-ratio);
-  mask-image: linear-gradient(0deg,transparent,#000 6%,#000 95%,transparent),
-              linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent);
-  mask-composite: intersect;
-}
-.portrait-sheet .scene-image { width: 100%; height: 100%; object-fit: contain; }
-.portrait-stage::after {
-  content: ''; position: absolute; inset: 0;
-  background: linear-gradient(0deg,#080d20b8,transparent 31%,transparent 80%,#090e2561);
-}
-.ridge-alignment {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  --portrait-ratio: 0.5628;
-}
-.ridge-bridge {
-  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
-  opacity: 0; pointer-events: none;
-}
-.ridge-bridge[data-ready="true"] { opacity: var(--ridge,0); }
-.telescope-view {
-  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-  opacity: 0; pointer-events: none;
-  mask-image: radial-gradient(circle farthest-corner at 46% 48%,
-    black max(0%,calc(var(--aperture,0) * 114% - 5%)),transparent calc(var(--aperture,0) * 114% + 3%));
-  transform-origin: 46% 48%;
-  transform: scale(calc(1 + .03 * var(--lens, 0)));
-}
-.telescope-view[data-ready="true"] { opacity: var(--lens-light,0); }
-
-.portrait-story { position: relative; }
 .portrait-heading {
-  position: absolute; z-index: 1; top: max(74px,calc(env(safe-area-inset-top) + 60px));
-  padding-inline: max(var(--gutter),env(safe-area-inset-left));
-  width: 100%; max-width: 48rem; left: 50%; transform: translateX(-50%);
-  text-shadow: 0 2px 14px #060918;
+  position: relative; z-index: 2; width: min(100%,48rem); margin: 0 auto clamp(-78px,-12vw,-32px);
+  padding: clamp(14px,4.5vw,38px) max(var(--gutter),env(safe-area-inset-left)) 0;
+  text-shadow: 0 2px 13px #060918;
 }
 .portrait-heading .chapter-line { justify-content: flex-start; font-size: 10px; }
 .portrait-heading h1 {
-  margin: 12px 0 0 -.035em; font-size: clamp(3.55rem,14vw,6.3rem); line-height: .86;
+  margin: 9px 0 0 -.035em; font-size: clamp(3.35rem,15vw,6.2rem); line-height: .86;
 }
 .portrait-heading h1 em { white-space: normal; }
-.portrait-heading h2:not(.visually-hidden) {
-  margin-top: .35em; font-size: clamp(2rem,7vw,3.5rem); text-wrap: balance;
+.portrait-heading h2 { margin: .26em 0 0; font-size: clamp(2rem,7vw,3.5rem); text-wrap: balance; }
+.portrait-stage, .portrait-sheet, .portrait-camera { display: block; }
+.portrait-stage {
+  position: relative; width: 100%; aspect-ratio: var(--portrait-ratio); overflow: clip;
+  background: var(--atmosphere,none) center / cover;
+  mask-image: linear-gradient(0deg,transparent,#000 13%,#000 92%,transparent);
 }
+.portrait-camera {
+  width: 100%; height: 100%; transform-origin: var(--focus);
+  mask-image: linear-gradient(90deg,transparent,#000 1.8%,#000 98.2%,transparent);
+}
+@media (min-width: 650px) {
+  /* A wider tablet still opens on the first sentence. The entire original
+     sits inside the extended sky, preserving the friends at either edge. */
+  .opening .portrait-stage { aspect-ratio: auto; }
+  .opening .portrait-stage::before {
+    content: ''; position: absolute; inset: -5px;
+    background: var(--cover-art,none) center / 100% 100% no-repeat;
+    filter: blur(12px) brightness(.58); opacity: .86;
+  }
+  .opening .portrait-camera {
+    width: min(100%,calc(max(25rem,100svh - 15rem) * var(--portrait-ratio)));
+    aspect-ratio: var(--portrait-ratio); height: auto; margin-inline: auto;
+    mask-image: linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);
+  }
+}
+.portrait-sheet { position: relative; width: 100%; height: 100%; }
+.portrait-sheet .scene-image { display: block; width: 100%; height: 100%; object-fit: contain; }
 .portrait-passage {
   position: relative; font-size: clamp(1.125rem,calc(.97rem + .76vw),1.48rem);
-  line-height: 1.54; font-weight: 400; text-wrap: pretty; text-shadow: 0 1px 4px #060b18;
+  line-height: 1.58; font-weight: 400; text-wrap: pretty; text-shadow: 0 1px 4px #060b18;
 }
-.reading-beat {
-  display: flex; flex-direction: column; justify-content: flex-end;
-  min-height: 100vh; min-height: 100svh; min-height: 100dvh;
-  padding: max(160px,24svh) max(var(--gutter),env(safe-area-inset-right))
-           max(92px,calc(env(safe-area-inset-bottom) + 73px)) max(var(--gutter),env(safe-area-inset-left));
-}
-.opening .reading-beat { padding-top: max(248px,36svh); }
+.reading-beat { display: flow-root; position: relative; }
 .beat-text {
-  display: block; position: relative; isolation: isolate; width: min(100%,39ch);
-  margin-inline: auto; color: #fff6e8;
+  display: block; position: relative; z-index: 1; isolation: isolate;
+  width: min(calc(100% - 2 * var(--gutter)),37ch); margin: calc(-1 * var(--overlap)) auto 0;
+  padding-bottom: var(--breath); color: #fff6e8;
 }
 .beat-text::before {
   content: ''; position: absolute; z-index: -1; pointer-events: none;
-  inset: -3.5rem calc((100% - 100vw)/2) -4.5rem;
-  background: linear-gradient(180deg,transparent,#080d20d1 3.5rem,#080d20dc calc(100% - 4.5rem),transparent);
+  inset: -2.7rem calc((100% - 100vw)/2) 0;
+  background: linear-gradient(180deg,transparent,#0b1124d9 2.7rem,#0c1224f7 calc(100% - 1rem),#0c1224);
 }
-.portrait-end { position: absolute; bottom: max(68px,calc(env(safe-area-inset-bottom) + 57px)); width: 100%; text-align: center; color: var(--gold); font-size: 11px; }
+.quest .reading-beat:first-child .beat-text {
+  margin-top: 0; padding-top: .65rem; padding-bottom: .9rem;
+}
+.quest .reading-beat:first-child .portrait-stage { margin-top: -.35rem; }
+.quest .reading-beat:nth-child(2) .beat-text { margin-top: calc(-1 * var(--overlap)); }
+.lens-field, .ridge-alignment { display: block; position: relative; overflow: clip; }
+.lens-field {
+  width: 100%; aspect-ratio: 941 / 1672;
+  background: #111b38 url('/atmosphere/night-sky.webp') center / cover;
+  mask-image: linear-gradient(0deg,transparent,#000 14%,#000 90%,transparent);
+}
+.ridge-alignment {
+  width: 100%; aspect-ratio: 2.2; background: linear-gradient(#1b2138,#674950,#252842);
+  margin: .2rem auto -2vw;
+  mask-image: linear-gradient(0deg,transparent,#000 20%,#000 78%,transparent);
+}
+.ridge-bridge, .telescope-view {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0;
+}
+.ridge-bridge { object-position: 50% 27%; }
+.ridge-bridge[data-ready="true"], .telescope-view[data-ready="true"] { opacity: 1; }
+.telescope-view {
+  object-fit: contain;
+  mask-image: radial-gradient(circle farthest-corner at 46% 44%,
+    black calc(31% + var(--aperture,1) * 76%), transparent calc(47% + var(--aperture,1) * 74%));
+}
+.portrait-end {
+  width: 100%; text-align: center; color: var(--gold); font-size: 14px;
+  padding-bottom: max(2.6rem,env(safe-area-inset-bottom));
+}
 
 /* These masked copies move only a loose edge of the completed plate; eyes,
    faces and bodies stay anchored to the reader's native scroll position. */
@@ -115,4 +134,8 @@
   .portrait-camera, .telescope-view { transform: none !important; }
   .telescope-view { mask-image: none; }
   .afterglow { display: none; }
+}
+
+.portrait-stage > .starlight {
+  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1;
 }
