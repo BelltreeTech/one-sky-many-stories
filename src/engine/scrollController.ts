@@ -40,8 +40,9 @@ export function useScrollController() {
     const strip = document.querySelector<HTMLElement>('main.portrait-reader')!
     const steps = strip.querySelectorAll<HTMLElement>('[data-beat]')
     let frame = 0
+    let gesture: 'relative' | 'absolute' | undefined
     const viewport = window.visualViewport
-    let previous: { width: number; stripWidth: number; y: number; anchor: ZoomAnchor } | undefined
+    let previous: { width: number; stripWidth: number; height: number; y: number; anchor: ZoomAnchor } | undefined
     function locate() {
       frame = 0
       if (!steps.length) return
@@ -56,8 +57,25 @@ export function useScrollController() {
       if (settled && previous && previous.y > 0 && (width !== previous.width || stripWidth !== previous.stripWidth)) {
         const { element, progress, viewportFraction } = previous.anchor
         const bounds = element.getBoundingClientRect()
-        window.scrollBy({ top: bounds.top + bounds.height * progress - height * viewportFraction, behavior: 'instant' })
+        const correction = bounds.top + bounds.height * progress - height * viewportFraction
+        const targetY = window.scrollY + correction
+        // Safari also repositions its viewport on rotation and Page Zoom.
+        // It can land up to a screen before the old or new paragraph. Keep
+        // a separate navigation across chapters if it lands beyond both.
+        const screen = Math.max(previous.height, height)
+        const start = Math.min(previous.y, targetY) - screen
+        const end = Math.max(previous.y, targetY) + screen
+        // A large reflow can move the original paragraph several screens away.
+        // Restore it before relative scrolling continues. If it is already
+        // nearby, let the gesture finish. Home and End choose their own target.
+        const chapter = element.closest<HTMLElement>('[data-scene]')!.getBoundingClientRect()
+        const sceneInView = chapter.bottom > 0 && chapter.top < height
+        const followsReader = gesture === 'absolute' || (gesture === 'relative' && (sceneInView || Math.abs(correction) <= screen))
+        if (!followsReader && window.scrollY >= start && window.scrollY <= end) {
+          window.scrollBy({ top: correction, behavior: 'instant' })
+        }
       }
+      gesture = undefined
       let lo = 0
       let hi = steps.length - 1
       while (lo < hi) {
@@ -65,7 +83,7 @@ export function useScrollController() {
         if (steps[mid].getBoundingClientRect().bottom <= middle) lo = mid + 1
         else hi = mid
       }
-      if (settled) previous = { width, stripWidth, y: window.scrollY, anchor: captureZoomAnchor(steps, lo, height) }
+      if (settled) previous = { width, stripWidth, height, y: window.scrollY, anchor: captureZoomAnchor(steps, lo, height) }
       const step = steps[lo]
       const section = step.closest<HTMLElement>('[data-scene]')!
       const scene = Number(section.dataset.scene)
@@ -75,6 +93,15 @@ export function useScrollController() {
     function queue() {
       if (!frame) frame = requestAnimationFrame(locate)
     }
+    function followGesture(event: Event) {
+      if (event instanceof KeyboardEvent && !['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) return
+      // WebKit cancels native momentum if a scripted correction lands during
+      // the same frame as a scroll gesture or keyboard navigation.
+      gesture = event instanceof KeyboardEvent && (event.key === 'Home' || event.key === 'End') ? 'absolute' : 'relative'
+      queue()
+    }
+    const gestures = ['wheel', 'touchmove', 'keydown']
+    for (const type of gestures) window.addEventListener(type, followGesture, { passive: true })
     const resize = new ResizeObserver(queue)
     steps.forEach(step => resize.observe(step))
     window.addEventListener('scroll', queue, { passive: true })
@@ -83,6 +110,7 @@ export function useScrollController() {
     locate()
     return () => {
       resize.disconnect()
+      for (const type of gestures) window.removeEventListener(type, followGesture)
       window.removeEventListener('scroll', queue)
       window.removeEventListener('resize', queue)
       viewport?.removeEventListener('resize', queue)

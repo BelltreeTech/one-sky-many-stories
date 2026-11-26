@@ -55,15 +55,14 @@ test('the human reader can pause, discover and reread both beats in scenes seven
     Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: undefined });
     Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: undefined });
   });
-  await openBook(page);
   await page.clock.install();
   const viewports = info.project.name === 'desktop-chromium'
     ? [page.viewportSize()!, { width: 1920, height: 1080 }, { width: 393, height: 852 }]
     : [page.viewportSize()!];
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
-    // Settle the previous reading anchor after the viewport reflows.
-    await page.clock.runFor(96);
+    // Start this reading session at its own width before choosing a passage.
+    await openBook(page);
     for (const id of secondBeat.keys()) {
       await test.step(`Pause at scene ${id} in ${viewport.width}×${viewport.height}`, async () => {
         const scene = await visitScene(page, id);

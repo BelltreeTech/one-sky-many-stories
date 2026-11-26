@@ -96,6 +96,7 @@ test('a transient 503 while online recovers in place and a persistent failure ha
   const requestsForScene = () => ['portrait/19.webp', 'portrait/preview/19.webp']
     .map(file => requestCounts.get(new URL(file, baseURL).pathname) ?? 0);
   const settledCounts = requestsForScene();
+  expect(settledCounts, 'One initial request and one automatic retry per image').toEqual([2, 2]);
   // Stay with the still-failing illustration across two more retry windows.
   await page.waitForTimeout(3000);
   expect(requestsForScene()).toEqual(settledCounts);
@@ -117,4 +118,22 @@ test('resizing only the window height keeps the broad-screen reading column on t
       return Math.abs((rect.top + rect.bottom) / 2 - innerHeight / 2);
     })).toBeLessThan(5);
   }
+});
+
+test('an explicit scroll during reflow takes the reader to the requested paragraph', async ({ page }) => {
+  await page.setViewportSize({ width: 834, height: 1194 });
+  await openBook(page);
+  const first = page.locator('#scene-01 .beat-text');
+  await first.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+  await page.evaluate(() => new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '200%';
+    document.querySelector('#scene-17 .beat-text')!.scrollIntoView({ block: 'center', behavior: 'instant' });
+  });
+  await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '17');
+  await expect.poll(() => page.locator('#scene-17 .beat-text').evaluate(el => {
+    const bounds = el.getBoundingClientRect();
+    return Math.abs((bounds.top + bounds.bottom - innerHeight) / 2);
+  })).toBeLessThan(3);
 });

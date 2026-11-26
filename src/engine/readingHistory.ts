@@ -2,7 +2,25 @@
 // reader actually leaves carries its place when Safari rebuilds the document.
 export function preserveReadingHistory() {
   const entryKey = 'oneSkyReading'
-  const address = location.pathname + location.search + location.hash
+  const address = () => location.pathname + location.search + location.hash
+
+  // Browsers may snapshot history.state before pagehide. Associate a tab's
+  // final scroll offset with this history entry while the document is active.
+  function storageKey() {
+    let id = history.state?.oneSkyEntry
+    if (typeof id !== 'string') {
+      id = Array.from(crypto.getRandomValues(new Uint32Array(4))).join('-')
+      history.replaceState({ ...history.state, oneSkyEntry: id }, '')
+    }
+    return 'one-sky:reading:' + id
+  }
+  function readPlace() {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(storageKey()) ?? 'null')
+      if (saved?.address === address()) return saved
+    } catch { /* History still works if session storage is unavailable. */ }
+    return history.state?.[entryKey]
+  }
 
   let savedY: number | undefined
   function remember() {
@@ -13,19 +31,22 @@ export function preserveReadingHistory() {
     const rect = anchor.getBoundingClientRect()
     const section = anchor.closest<HTMLElement>('[data-scene]')
     const place = {
-      address, y: scrollY, scene: section?.id,
+      address: address(), y: scrollY, scene: section?.id,
       beat: anchor.dataset.beat, progress: Math.max(0, Math.min(1, (middle - rect.top) / Math.max(1, rect.height))),
     }
+    try {
+      sessionStorage.setItem(storageKey(), JSON.stringify(place))
+    } catch { /* The history entry is the fallback when storage is full. */ }
     try {
       history.replaceState({ ...history.state, [entryKey]: place }, '')
       savedY = scrollY
     } catch { /* Native history remains available. */ }
   }
 
-  const saved = history.state?.[entryKey]
+  const saved = readPlace()
   const restoration = new AbortController()
   const cancelRestore = () => restoration.abort()
-  const hasPlace = saved?.address === address && Number.isFinite(saved.y) && saved.y >= 0 && Number.isFinite(saved.progress)
+  const hasPlace = saved?.address === address() && Number.isFinite(saved.y) && saved.y >= 0 && Number.isFinite(saved.progress)
   const linkedScene = /^#scene-(0[1-9]|1[0-9]|20)$/.test(location.hash) ? location.hash.slice(1) : ''
   const sceneId = hasPlace ? saved.scene : linkedScene
   const section = sceneId ? document.getElementById(sceneId) : null

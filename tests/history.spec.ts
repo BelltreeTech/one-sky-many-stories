@@ -56,3 +56,25 @@ test('Safari history preserves a reading pause, and a fresh link opens at the co
     await linked.close();
   }
 });
+
+test('reloading during an unfinished scroll keeps the last paragraph in this history entry', async ({ page }) => {
+  // Some browsers do not dispatch scrollend before switching documents.
+  await page.addInitScript(() => window.addEventListener('scrollend', event => event.stopImmediatePropagation(), true));
+  await page.goto('./#scene-05');
+  await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '5');
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '1');
+  await Promise.all([
+    page.waitForNavigation({ waitUntil: 'load' }),
+    page.evaluate(() => {
+      document.querySelector('#scene-06 .beat-text')!.scrollIntoView({ block: 'center', behavior: 'instant' });
+      location.reload();
+    }),
+  ]);
+  await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '6');
+  await expect.poll(() => page.locator('#scene-06 .beat-text').evaluate(el => {
+    const rect = el.getBoundingClientRect();
+    return Math.abs((rect.top + rect.bottom - innerHeight) / 2);
+  })).toBeLessThan(4);
+});
