@@ -42,6 +42,8 @@ test('the whole opening sentence fits above phone browser chrome without scrolli
 });
 
 test('twenty illustrations and passages match the PDF in the production reader', async ({ page }, info) => {
+  // Decoding and sampling all 23 composed text frames can exceed 90 s on iPad WebKit in CI.
+  test.setTimeout(180_000);
   const isPortrait = info.project.name !== 'desktop-chromium';
   const deviceName = info.project.name === 'ipad-webkit' ? 'ipad' : 'iphone';
   const resources = new Map<string, Response>();
