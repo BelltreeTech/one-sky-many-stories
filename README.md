@@ -75,11 +75,11 @@ npx --no-install playwright install chromium webkit
 npm test
 ```
 
-テストにはPython 3も使う。Playwrightが一時静的サーバーを127.0.0.1:4182で起動し、実際の `dist/` を `/one-sky-many-stories/` にマウントする。スクリーンショットは `artifacts/screenshots/`、失敗時のトレースは `artifacts/test-results/` に出力する。
+テストにはPython 3も使う。Playwrightが一時静的サーバーを127.0.0.1:4182で起動し、実際の `dist/` を `/one-sky-many-stories/` にマウントする。スクリーンショットと失敗時のトレースは、それぞれ `artifacts/webtoon-qa/screenshots/` と `artifacts/webtoon-qa/test-results/` に出力する。
 
 ### 連続縦読み版の検証
 
-[縦版の検証記録と再現手順](docs/portrait-qa.md)に、iPhone・iPad・デスクトップでの全編の通読、19の場面境界、文字拡大、逆読み、画面回転、動きの軽減、通信復帰の結果を記録する。原文の照合は第7・8・11場面の後半も含む23箇所で行う。
+[縦版の検証記録と再現手順](docs/portrait-qa.md)に、iPhone・iPad・デスクトップで通過した60件の検査を記録した。全編の通読、19の場面境界、文字拡大、逆読み、画面回転、動きの軽減、通信復帰を含む。原文の照合は第7・8・11場面の後半も含む23箇所で行う。
 
 ### Foundation版の検証記録
 
