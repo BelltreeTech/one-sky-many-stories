@@ -1,43 +1,28 @@
-import { expect, type Locator } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { expectImageFailures, openBook, oracle, sceneAt, test, visitScene } from './reader-harness';
 
 const portrait = { width: 393, height: 852 };
 const landscape = { width: 852, height: 393 };
 
-function centerFraction(element: Locator) {
-  return element.evaluate(el => {
-    const box = el.getBoundingClientRect();
-    return (innerHeight / 2 - box.top) / box.height;
-  });
-}
-
-test('first rotation from a late landscape scene maps the whole scene, then restores the portrait beat', async ({ page }) => {
+test('rotating at the telescope keeps the same reading beat within the continuous strip', async ({ page }) => {
   await page.setViewportSize(landscape);
   await openBook(page);
-  const scene = sceneAt(page, 8);
-  await scene.evaluate(el => {
-    const box = el.getBoundingClientRect();
-    scrollBy({ top: box.top + .88 * box.height - innerHeight / 2, behavior: 'instant' });
+  const scene = await visitScene(page, 8);
+  const second = scene.locator('[data-beat="2"] .beat-text');
+  const position = () => second.evaluate(el => {
+    const rect = el.getBoundingClientRect();
+    return (rect.top + rect.height / 2) / innerHeight;
   });
-  await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '8');
-  const previousFraction = await centerFraction(scene);
-  await page.setViewportSize(portrait);
-  const second = scene.locator('[data-beat="2"]');
-  await expect(second).toHaveCount(1);
-  await expect.poll(async () => Math.abs(await centerFraction(scene) - previousFraction)).toBeLessThan(.035);
-  expect(await centerFraction(second)).toBeGreaterThan(0);
-  await test.info().attach('first-rotation.json', { body: JSON.stringify({ landscape: previousFraction, portrait: await centerFraction(scene) }), contentType: 'application/json' });
-  // User scrolls a little farther into the portrait answer before rotating back.
-  await second.evaluate(el => {
-    const box = el.getBoundingClientRect();
-    scrollBy({ top: box.top + .64 * box.height - innerHeight / 2, behavior: 'instant' });
-  });
-  await expect.poll(() => centerFraction(second)).toBeCloseTo(.64, 2);
+  await second.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await expect.poll(position).toBeCloseTo(.5, 2);
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-  await page.setViewportSize(landscape);
-  await expect(second).toHaveCount(0);
-  await page.setViewportSize(portrait);
-  await expect.poll(() => centerFraction(second)).toBeCloseTo(.64, 2);
+  for (const viewport of [portrait, landscape, portrait]) {
+    await page.setViewportSize(viewport);
+    await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '8');
+    await expect(second).toHaveCount(1);
+    await expect.poll(async () => Math.abs(await position() - .5)).toBeLessThan(.035);
+    await expect(scene.locator('.scene-image')).toHaveAttribute('src', /\/portrait\/08\.webp$/);
+  }
 });
 
 test('a recovered portrait paints the sisters’ actual hair, sleeve and cloud edges', async ({ page, baseURL }) => {
@@ -50,7 +35,8 @@ test('a recovered portrait paints the sisters’ actual hair, sleeve and cloud e
   const scene = await visitScene(page, 11);
   const image = scene.locator('.scene-image');
   await expect(image).toHaveAttribute('data-fallback', 'true');
-  await expect.poll(() => image.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(oracle.scenes[10].width);
+  await expect(image).toHaveAttribute('src', /\/portrait\/preview\/11\.webp$/);
+  expect(await image.evaluate(async (el: HTMLImageElement) => { await el.decode(); return el.naturalWidth; })).toBe(360);
   recovered = true;
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(image).toHaveAttribute('data-fallback', 'false');
@@ -78,11 +64,11 @@ test('a recovered portrait paints the sisters’ actual hair, sleeve and cloud e
 
 test('a transient 503 while online recovers in place and a persistent failure has a bounded retry', async ({ page, baseURL }) => {
   await page.setViewportSize(portrait);
-  const failures = [12, 19].flatMap(id => ['portrait', 'art'].map(folder => new URL(`${folder}/${id}.webp`, baseURL).href));
+  const failures = [12, 19].flatMap(id => ['portrait', 'portrait/preview'].map(folder => new URL(`${folder}/${id}.webp`, baseURL).href));
   expectImageFailures(page, failures);
   const attempts = new Map<string, Set<string>>();
   let recovered = false;
-  await page.route(/\/(?:portrait|art)\/(?:12|19)\.webp(?:\?.*)?$/, route => {
+  await page.route(/\/portrait\/(?:preview\/)?(?:12|19)\.webp(?:\?.*)?$/, route => {
     const url = new URL(route.request().url());
     const versions = attempts.get(url.pathname) ?? new Set<string>();
     versions.add(url.search); attempts.set(url.pathname, versions);
@@ -93,7 +79,7 @@ test('a transient 503 while online recovers in place and a persistent failure ha
   await openBook(page);
   const scene = await visitScene(page, 12);
   const picture = scene.locator('.scene-image');
-  await expect.poll(() => versions('art/12.webp')).toBe(1);
+  await expect.poll(() => versions('portrait/preview/12.webp')).toBe(1);
   const y = await page.evaluate(() => scrollY);
   expect(await page.evaluate(() => navigator.onLine)).toBe(true);
   recovered = true;
@@ -103,10 +89,10 @@ test('a transient 503 while online recovers in place and a persistent failure ha
   expect(await scene.locator('.passage').textContent()).toBe(oracle.scenes[11].text);
   expect(versions('portrait/19.webp')).toBe(0);
   const end = await visitScene(page, 19);
-  await expect.poll(() => versions('art/19.webp')).toBe(2);
+  await expect.poll(() => versions('portrait/preview/19.webp')).toBe(2);
   // Stay with the still-failing illustration across two more retry windows.
   await page.waitForTimeout(3000);
   expect(versions('portrait/19.webp')).toBe(2);
-  expect(versions('art/19.webp')).toBe(2);
+  expect(versions('portrait/preview/19.webp')).toBe(2);
   expect(await end.locator('.passage').textContent()).toBe(oracle.scenes[18].text);
 });

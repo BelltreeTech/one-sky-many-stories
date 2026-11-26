@@ -7,7 +7,7 @@ declare global {
   }
 }
 
-test('opening the story immediately supports silent, human-led reading at every reading position', async ({ page }, info) => {
+test('opening the story immediately supports silent, human-led reading at every reading position', async ({ page }) => {
   await page.addInitScript(() => {
     const calls: string[] = [];
     window.__audioCalls = calls;
@@ -34,12 +34,11 @@ test('opening the story immediately supports silent, human-led reading at every 
   await expect(page.getByRole('button')).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: '読み聞かせの操作' })).toHaveCount(0);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-  const isPortrait = info.project.name !== 'desktop-chromium';
   let positions = 0;
   for (const source of oracle.scenes) {
     const scene = await visitScene(page, source.id);
-    const texts = isPortrait ? scene.locator('.beat-text') : scene.locator('.passage');
-    const count = isPortrait && secondBeat.has(source.id) ? 2 : 1;
+    const texts = scene.locator('.beat-text');
+    const count = secondBeat.has(source.id) ? 2 : 1;
     await expect(texts).toHaveCount(count);
     for (let beat = 0; beat < count; beat++) {
       await readAt(texts.nth(beat));
@@ -47,7 +46,7 @@ test('opening the story immediately supports silent, human-led reading at every 
       positions++;
     }
   }
-  expect(positions).toBe(isPortrait ? 23 : 20);
+  expect(positions).toBe(23);
   expect(await page.evaluate(() => window.__audioCalls)).toEqual([]);
 });
 

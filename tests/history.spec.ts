@@ -1,10 +1,10 @@
 import { expect } from '@playwright/test';
-import { test } from './reader-harness';
+import { oracle, test } from './reader-harness';
 
 test('Safari history preserves a reading pause, and a fresh link opens at the cover', async ({ page, context }) => {
   await page.goto('./');
   const scene = page.locator('[data-scene="11"]');
-  const text = scene.locator('.beat-text').last().or(scene.locator('.narration .passage')).first();
+  const text = scene.locator('.beat-text').last();
   await text.waitFor();
   await page.evaluate(() => document.fonts.ready);
   await text.evaluate(node => node.scrollIntoView({ block: 'center', behavior: 'instant' }));
@@ -32,5 +32,22 @@ test('Safari history preserves a reading pause, and a fresh link opens at the co
     expect(await fresh.evaluate(() => scrollY)).toBe(0);
   } finally {
     await fresh.close();
+  }
+  const linked = await context.newPage();
+  try {
+    await linked.goto(new URL('#scene-05', address).href);
+    const fifth = linked.locator('[data-scene="5"]');
+    await expect(linked.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '5');
+    const image = fifth.locator('.scene-image');
+    await expect(image).toHaveAttribute('src', /\/portrait\/05\.webp$/);
+    const inView = await image.evaluate(async (img: HTMLImageElement) => {
+      await img.decode();
+      const bounds = img.getBoundingClientRect();
+      return img.naturalHeight > img.naturalWidth && bounds.height > bounds.width && bounds.bottom > 0 && bounds.top < innerHeight;
+    });
+    expect(inView).toBe(true);
+    expect(await fifth.locator('.passage').textContent()).toBe(oracle.scenes[4].text);
+  } finally {
+    await linked.close();
   }
 });

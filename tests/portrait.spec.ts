@@ -382,12 +382,12 @@ test.describe('portrait discoveries', () => {
     }
   });
 
-  test('art recovers in place after both portrait and landscape return a temporary 503', async ({ page, baseURL }) => {
-    const files = ['portrait/12.webp', 'art/12.webp'].map(path => new URL(path, baseURL).href);
+  test('art recovers in place after both the full portrait and its preview return a temporary 503', async ({ page, baseURL }) => {
+    const files = ['portrait/12.webp', 'portrait/preview/12.webp'].map(path => new URL(path, baseURL).href);
     expectImageFailures(page, files);
     const failed = new Set<string>();
     let available = false;
-    await page.route(/\/(?:art|portrait)\/12\.webp(?:\?.*)?$/, route => {
+    await page.route(/\/portrait\/(?:preview\/)?12\.webp(?:\?.*)?$/, route => {
       if (available) return route.continue();
       const url = new URL(route.request().url());
       failed.add(url.origin + url.pathname);
@@ -446,13 +446,13 @@ test.describe('portrait discoveries', () => {
     await expect.poll(() => [...failures].sort()).toEqual(['11.webp', 'before-memory.webp', 'ridge.webp', 'telescope.webp']);
     const fallback = sisters.locator('.scene-image');
     await expect(fallback).toHaveAttribute('data-fallback', 'true');
-    await expect(fallback).toHaveAttribute('src', /\/art\/11\.webp(?:\?.*)?$/);
+    await expect(fallback).toHaveAttribute('src', /\/portrait\/preview\/11\.webp(?:\?.*)?$/);
     // WebKit may report 300 × 150 while the full response is still arriving.
     const decoded = await fallback.evaluate(async (img: HTMLImageElement) => {
       await img.decode();
       return { url: new URL(img.currentSrc).pathname, width: img.naturalWidth, height: img.naturalHeight };
     });
-    expect(decoded).toEqual({ url: deployPath + 'art/11.webp', width: oracle.scenes[10].width, height: oracle.scenes[10].height });
+    expect(decoded).toEqual({ url: deployPath + 'portrait/preview/11.webp', width: 360, height: Math.round(360 * 1672 / 941) });
     expect(await sisters.locator('.passage').textContent()).toBe(oracle.scenes[10].text);
     await expectReadable(await visitScene(page, 20));
   });
