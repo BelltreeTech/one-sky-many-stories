@@ -37,21 +37,23 @@ function captureZoomAnchor(steps: NodeListOf<HTMLElement>, index: number, height
 export function useScrollController() {
   const [place, setPlace] = useState({ scene: 1, beat: 1 })
   useLayoutEffect(() => {
-    const steps = document.querySelectorAll<HTMLElement>('[data-beat]')
+    const strip = document.querySelector<HTMLElement>('main.portrait-reader')!
+    const steps = strip.querySelectorAll<HTMLElement>('[data-beat]')
     let frame = 0
     const viewport = window.visualViewport
-    let previous: { width: number; y: number; anchor: ZoomAnchor } | undefined
+    let previous: { width: number; stripWidth: number; y: number; anchor: ZoomAnchor } | undefined
     function locate() {
       frame = 0
       if (!steps.length) return
       const height = window.innerHeight
       const middle = height / 2
       const width = document.documentElement.clientWidth
+      const stripWidth = strip.clientWidth
       // A rotation, split view, or Safari Page Zoom reflows the same strip.
       // Preserve the text or illustration point the reader was looking at.
       // A pinch changes the visual viewport only; let Safari own that motion.
       const settled = !viewport || Math.abs(viewport.width - width) < 2
-      if (settled && previous && previous.y > 0 && width !== previous.width) {
+      if (settled && previous && previous.y > 0 && (width !== previous.width || stripWidth !== previous.stripWidth)) {
         const { element, progress, viewportFraction } = previous.anchor
         const bounds = element.getBoundingClientRect()
         window.scrollBy({ top: bounds.top + bounds.height * progress - height * viewportFraction, behavior: 'instant' })
@@ -63,7 +65,7 @@ export function useScrollController() {
         if (steps[mid].getBoundingClientRect().bottom <= middle) lo = mid + 1
         else hi = mid
       }
-      if (settled) previous = { width, y: window.scrollY, anchor: captureZoomAnchor(steps, lo, height) }
+      if (settled) previous = { width, stripWidth, y: window.scrollY, anchor: captureZoomAnchor(steps, lo, height) }
       const step = steps[lo]
       const section = step.closest<HTMLElement>('[data-scene]')!
       const scene = Number(section.dataset.scene)

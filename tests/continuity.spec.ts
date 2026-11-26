@@ -67,9 +67,11 @@ test('a transient 503 while online recovers in place and a persistent failure ha
   const failures = [12, 19].flatMap(id => ['portrait', 'portrait/preview'].map(folder => new URL(`${folder}/${id}.webp`, baseURL).href));
   expectImageFailures(page, failures);
   const attempts = new Map<string, Set<string>>();
+  const requestCounts = new Map<string, number>();
   let recovered = false;
   await page.route(/\/portrait\/(?:preview\/)?(?:12|19)\.webp(?:\?.*)?$/, route => {
     const url = new URL(route.request().url());
+    requestCounts.set(url.pathname, (requestCounts.get(url.pathname) ?? 0) + 1);
     const versions = attempts.get(url.pathname) ?? new Set<string>();
     versions.add(url.search); attempts.set(url.pathname, versions);
     if (url.pathname.endsWith('/12.webp') && recovered) return route.continue();
@@ -90,9 +92,29 @@ test('a transient 503 while online recovers in place and a persistent failure ha
   expect(versions('portrait/19.webp')).toBe(0);
   const end = await visitScene(page, 19);
   await expect.poll(() => versions('portrait/preview/19.webp')).toBe(2);
+  await expect(end.locator('.scene-image')).not.toHaveAttribute('src');
+  const requestsForScene = () => ['portrait/19.webp', 'portrait/preview/19.webp']
+    .map(file => requestCounts.get(new URL(file, baseURL).pathname) ?? 0);
+  const settledCounts = requestsForScene();
   // Stay with the still-failing illustration across two more retry windows.
   await page.waitForTimeout(3000);
+  expect(requestsForScene()).toEqual(settledCounts);
   expect(versions('portrait/19.webp')).toBe(2);
   expect(versions('portrait/preview/19.webp')).toBe(2);
   expect(await end.locator('.passage').textContent()).toBe(oracle.scenes[18].text);
+});
+
+test('resizing only the window height keeps the broad-screen reading column on the same paragraph', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openBook(page);
+  const passage = page.locator('[data-scene="17"] .beat-text');
+  await passage.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '17');
+  for (const height of [650, 900]) {
+    await page.setViewportSize({ width: 1440, height });
+    await expect.poll(() => passage.evaluate(el => {
+      const rect = el.getBoundingClientRect();
+      return Math.abs((rect.top + rect.bottom) / 2 - innerHeight / 2);
+    })).toBeLessThan(5);
+  }
 });

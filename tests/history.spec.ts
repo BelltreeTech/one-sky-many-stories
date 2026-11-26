@@ -47,6 +47,11 @@ test('Safari history preserves a reading pause, and a fresh link opens at the co
     });
     expect(inView).toBe(true);
     expect(await fifth.locator('.passage').textContent()).toBe(oracle.scenes[4].text);
+    await linked.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await expect(linked.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '1');
+    await linked.reload();
+    await expect(linked.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '1');
+    await expect.poll(() => linked.evaluate(() => scrollY)).toBe(0);
   } finally {
     await linked.close();
   }

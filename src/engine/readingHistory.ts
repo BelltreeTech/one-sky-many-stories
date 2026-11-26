@@ -4,6 +4,7 @@ export function preserveReadingHistory() {
   const entryKey = 'oneSkyReading'
   const address = location.pathname + location.search + location.hash
 
+  let savedY: number | undefined
   function remember() {
     const middle = innerHeight / 2
     const elements = document.querySelectorAll<HTMLElement>('[data-beat]')
@@ -15,13 +16,16 @@ export function preserveReadingHistory() {
       address, y: scrollY, scene: section?.id,
       beat: anchor.dataset.beat, progress: Math.max(0, Math.min(1, (middle - rect.top) / Math.max(1, rect.height))),
     }
-    try { history.replaceState({ ...history.state, [entryKey]: place }, '') } catch { /* Native history remains available. */ }
+    try {
+      history.replaceState({ ...history.state, [entryKey]: place }, '')
+      savedY = scrollY
+    } catch { /* Native history remains available. */ }
   }
 
   const saved = history.state?.[entryKey]
   const restoration = new AbortController()
   const cancelRestore = () => restoration.abort()
-  const hasPlace = saved?.address === address && saved.y > 0 && Number.isFinite(saved.progress)
+  const hasPlace = saved?.address === address && Number.isFinite(saved.y) && saved.y >= 0 && Number.isFinite(saved.progress)
   const linkedScene = /^#scene-(0[1-9]|1[0-9]|20)$/.test(location.hash) ? location.hash.slice(1) : ''
   const sceneId = hasPlace ? saved.scene : linkedScene
   const section = sceneId ? document.getElementById(sceneId) : null
@@ -30,6 +34,10 @@ export function preserveReadingHistory() {
     const restore = () => {
       if (!hasPlace) {
         section.scrollIntoView({ block: 'start', behavior: 'instant' })
+        return
+      }
+      if (saved.y === 0) {
+        window.scrollTo({ top: 0, behavior: 'instant' })
         return
       }
       const rect = anchor.getBoundingClientRect()
@@ -53,11 +61,19 @@ export function preserveReadingHistory() {
       if (!restoration.signal.aborted && Math.abs(scrollY - restored) < 2) restore()
     })
   }
+  // Some browsers snapshot the history entry before pagehide. Commit a
+  // completed gesture while the document is still active, including a return
+  // to the cover immediately before a reload of a chapter link.
+  const rememberCover = () => { if (scrollY === 0 && savedY !== 0) remember() }
+  window.addEventListener('scroll', rememberCover, { passive: true })
+  document.addEventListener('scrollend', remember)
   const whenHidden = () => { if (document.hidden) remember() }
   window.addEventListener('pagehide', remember)
   document.addEventListener('visibilitychange', whenHidden)
   return () => {
     cancelRestore()
+    window.removeEventListener('scroll', rememberCover)
+    document.removeEventListener('scrollend', remember)
     window.removeEventListener('pagehide', remember)
     document.removeEventListener('visibilitychange', whenHidden)
   }

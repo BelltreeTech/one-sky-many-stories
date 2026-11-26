@@ -50,37 +50,51 @@ test('opening the story immediately supports silent, human-led reading at every 
   expect(await page.evaluate(() => window.__audioCalls)).toEqual([]);
 });
 
-test('the human reader can linger at the questions in scenes seven and eleven', async ({ page }, info) => {
-  if (info.project.name === 'desktop-chromium') await page.setViewportSize({ width: 393, height: 852 });
+test('the human reader can pause, discover and reread both beats in scenes seven, eight and eleven', async ({ page }, info) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: undefined });
     Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: undefined });
   });
   await openBook(page);
   await page.clock.install();
-  for (const id of [7, 11]) {
-    const scene = await visitScene(page, id);
-    const first = scene.locator('[data-beat="1"] .beat-text');
-    const answer = scene.locator('[data-beat="2"] .beat-text');
-    await readAt(first);
-    const start = await page.evaluate(() => scrollY);
-    await page.clock.fastForward(90_000);
-    expect(await page.evaluate(() => scrollY)).toBe(start);
-    expect(await passageReadable(first)).toBe(true);
-    // Even the first line of the answer belongs to the reader's next swipe.
-    const answerTop = await answer.evaluate(el => {
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      return Math.min(...Array.from(range.getClientRects(), rect => rect.top)) - innerHeight;
-    });
-    expect(answerTop, 'No part of the answer is on screen at the question').toBeGreaterThanOrEqual(0);
-    await readAt(answer);
-    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(start);
-    await readAt(first);
-    expect(await page.evaluate(() => scrollY)).toBe(start);
-  }
+  const viewports = info.project.name === 'desktop-chromium'
+    ? [page.viewportSize()!, { width: 1920, height: 1080 }, { width: 393, height: 852 }]
+    : [page.viewportSize()!];
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    // Settle the previous reading anchor after the viewport reflows.
+    await page.clock.runFor(96);
+    for (const id of secondBeat.keys()) {
+      await test.step(`Pause at scene ${id} in ${viewport.width}×${viewport.height}`, async () => {
+        const scene = await visitScene(page, id);
+        const first = scene.locator('[data-beat="1"] .beat-text');
+        const answer = scene.locator('[data-beat="2"] .beat-text');
+        const answerClearance = () => answer.evaluate(el => {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          return range.getClientRects()[0].top - innerHeight;
+        });
+        await readAt(first);
+        const start = await page.evaluate(() => scrollY);
+        // The next panel may come into view. The first line of its text waits below the fold.
+        expect(await answerClearance()).toBeGreaterThanOrEqual(0);
+        await page.clock.fastForward(90_000);
+        expect(await page.evaluate(() => scrollY)).toBe(start);
+        expect(await passageReadable(first)).toBe(true);
+        expect(await answerClearance()).toBeGreaterThanOrEqual(0);
 
-  if (info.project.name !== 'desktop-chromium') return;
+        await readAt(answer);
+        expect(await page.evaluate(() => scrollY)).toBeGreaterThan(start);
+        await readAt(first);
+        expect(await page.evaluate(() => scrollY)).toBe(start);
+        expect(await answerClearance()).toBeGreaterThanOrEqual(0);
+      });
+    }
+  }
+});
+
+test('native text selection across an illustration preserves the PDF words', async ({ page, browserName }) => {
+  await openBook(page);
   for (const [id, secondStarts] of secondBeat) {
     const scene = await visitScene(page, id);
     const original = oracle.scenes[id - 1].text;
@@ -92,6 +106,26 @@ test('the human reader can linger at the questions in scenes seven and eleven', 
         // Leave one character outside either end of the cross-picture selection.
         getSelection()!.setBaseAndExtent(first, across ? 1 : 0, end, end.length - (across ? 1 : 0));
       }, crossIllustration);
+      const expected = crossIllustration ? original.slice(1, -1) : original.slice(0, original.indexOf(secondStarts)).trimEnd();
+      if (browserName === 'webkit') {
+        // Observe the trusted keyboard action inside this page to keep iPhone
+        // and iPad workers independent of one another's host clipboard.
+        const observed = await page.evaluateHandle(() => ({
+          copied: new Promise<string>(resolve => {
+            document.addEventListener('copy', event => {
+              const text = event.isTrusted && !event.defaultPrevented ? String(getSelection()) : '';
+              event.preventDefault();
+              resolve(text);
+            }, { once: true });
+          }),
+        }));
+        try {
+          await page.keyboard.press('ControlOrMeta+c');
+          const copied = await observed.evaluate(event => event.copied);
+          expect(copied.replace(/\r?\n/g, ' '), 'WebKit copy selection in scene ' + id).toBe(expected);
+        } finally { await observed.dispose(); }
+        continue;
+      }
       await page.keyboard.press('ControlOrMeta+c');
       const sink = await page.evaluateHandle(() => {
         const field = document.body.appendChild(document.createElement('textarea'));
@@ -101,7 +135,6 @@ test('the human reader can linger at the questions in scenes seven and eleven', 
       await page.keyboard.press('ControlOrMeta+v');
       const pasted = await sink.evaluate(field => { const value = field.value; field.remove(); return value; });
       await sink.dispose();
-      const expected = crossIllustration ? original.slice(1, -1) : original.slice(0, original.indexOf(secondStarts)).trimEnd();
       expect(pasted.replace(/\r?\n/g, ' '), 'Pasted PDF text from scene ' + id).toBe(expected);
     }
   }
