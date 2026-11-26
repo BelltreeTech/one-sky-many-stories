@@ -1,10 +1,11 @@
-import { StrictMode, useEffect } from 'react'
+import { StrictMode, useEffect, useLayoutEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import story from './data/story.json'
 import { SceneRenderer } from './components/SceneRenderer'
 import { ReadingHeader } from './components/ReadingHeader'
 import { ParticleEngine } from './engine/ParticleEngine'
 import { useMotionEnabled, usePortraitScreen, useScrollController } from './engine/scrollController'
+import { preserveReadingHistory } from './engine/readingHistory'
 import { refreshScenes } from './engine/animationTimeline'
 import './styles/reader.css'
 import './styles/portrait.css'
@@ -14,6 +15,7 @@ function App() {
   const place = useScrollController(portrait)
   const current = place.scene
   const motion = useMotionEnabled()
+  useLayoutEffect(preserveReadingHistory, [])
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>
     let mounted = true
