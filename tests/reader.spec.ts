@@ -30,6 +30,15 @@ test('the whole opening sentence fits above phone browser chrome without scrolli
     expect(line.top).toBeGreaterThanOrEqual(0);
     expect(line.bottom).toBeLessThanOrEqual(height - 12);
   }
+  const roomAboveLuna = await sceneAt(page, 1).evaluate(section => {
+    document.documentElement.style.fontSize = '200%';
+    const art = section.querySelector('.portrait-stage')!.getBoundingClientRect();
+    const title = section.querySelector('h1')!.getBoundingClientRect();
+    // Luna is the highest of the three faces, just below the top quarter
+    // of this specific illustration. A wrapped title must stay in the sky.
+    return art.top + .25 * art.height - title.bottom;
+  });
+  expect(roomAboveLuna).toBeGreaterThan(0);
 });
 
 test('twenty illustrations and passages match the PDF in the production reader', async ({ page }, info) => {
