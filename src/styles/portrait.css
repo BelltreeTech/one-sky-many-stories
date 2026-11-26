@@ -45,6 +45,17 @@
   width: 100%; height: 100%; transform-origin: var(--focus);
   mask-image: linear-gradient(90deg,transparent,#000 1.8%,#000 98.2%,transparent);
 }
+@media (max-width: 649px) {
+  /* The title shares the open sky. Safari's expanded bottom bar then leaves
+     the start of the story visible without cropping either traveler. */
+  .opening .portrait-story { display: grid; --overlap: clamp(64px,24vw,100px); }
+  .opening .portrait-heading, .opening .portrait-passage { grid-area: 1 / 1; min-width: 0; }
+  .opening .portrait-heading {
+    align-self: start; margin-bottom: 0;
+    padding-bottom: 2.5rem;
+    background: linear-gradient(#0c1224ed, #0c122493 58%, transparent);
+  }
+}
 @media (min-width: 650px) {
   /* A wider tablet still opens on the first sentence. The entire original
      sits inside the extended sky, preserving the friends at either edge. */
