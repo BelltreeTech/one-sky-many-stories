@@ -10,21 +10,32 @@ const portraitDescriptions: Partial<Record<number, string>> = {
 
 // Retry only a failed image, at a meaningful opportunity. An attempt-specific
 // URL avoids reusing an undecodable response held in the browser image cache.
-function useImageRecovery(near: boolean) {
+function useImageRecovery(near: boolean, failedFallbackAt?: number) {
   const [attempt, setAttempt] = useState(0)
   const [failedAt, setFailedAt] = useState(-1)
   const wasNear = useRef(near)
+  const usedTimedRetry = useRef(false)
   const failed = attempt === failedAt
+  const needsPixels = failedFallbackAt === undefined || failedFallbackAt === attempt
   const markFailed = useCallback(() => setFailedAt(attempt), [attempt])
   useEffect(() => {
     const returning = near && !wasNear.current
     wasNear.current = near
-    if (!near || !failed) return
-    const retry = () => setAttempt(value => value + 1)
-    if (returning) retry()
+    if (!near) { usedTimedRetry.current = false; return }
+    if (!failed) return
+    const retry = () => setAttempt(value => value === attempt ? value + 1 : value)
+    if (returning) { retry(); return }
     window.addEventListener('online', retry)
-    return () => window.removeEventListener('online', retry)
-  }, [near, failed])
+    // A server can recover from an HTTP error without the device going offline.
+    // Give a blank illustration one extra chance during this visit. A working
+    // landscape fallback stays visible until the reader returns or reconnects.
+    const timer = needsPixels && !usedTimedRetry.current && navigator.onLine
+      ? window.setTimeout(() => { usedTimedRetry.current = true; retry() }, 1000) : undefined
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('online', retry)
+    }
+  }, [near, failed, attempt, needsPixels])
   return { attempt, failed, markFailed }
 }
 
@@ -54,8 +65,8 @@ function DecodedExposure({ file, className, near, alt = '' }: {
 }
 
 export function PortraitScene({ scene, near }: { scene: Scene; near: boolean }) {
-  const { attempt, failed: fallback, markFailed } = useImageRecovery(near)
   const [unavailableAt, setUnavailableAt] = useState(-1)
+  const { attempt, failed: fallback, markFailed } = useImageRecovery(near, unavailableAt)
   const [width, height] = portraitDimensions(scene.id)
   const direction = portraitDirections[scene.id]
   const filename = fallback ? scene.image : portraitFile(scene.id)
@@ -80,8 +91,8 @@ export function PortraitScene({ scene, near }: { scene: Scene; near: boolean }) 
             if (fallback) setUnavailableAt(attempt)
             else markFailed()
           }} />
-        {scene.id === 11 && near && !fallback && <span className="afterglow" data-wind="still"
-          style={{ '--plate': 'url(' + src + ')' } as CSSProperties} aria-hidden="true">
+        {scene.id === 11 && <span className="afterglow" data-wind="still" hidden={!near || fallback}
+          style={{ '--plate': near && !fallback ? 'url(' + src + ')' : undefined } as CSSProperties} aria-hidden="true">
           <i className="drifting-cloud" /><i className="sleeve-tip" /><i className="hair-tip" />
         </span>}
       </span>

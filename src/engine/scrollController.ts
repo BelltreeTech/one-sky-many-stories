@@ -30,7 +30,7 @@ function subscribePortrait(notify: () => void) {
 export function useScrollController(portrait: boolean) {
   const [place, setPlace] = useState({ scene: 1, beat: 1 })
   const location = useRef({ ...place, fraction: .5, sceneFraction: .5 })
-  const lastPortrait = useRef(location.current)
+  const lastPortrait = useRef<typeof location.current | null>(null)
   const previousOrientation = useRef(portrait)
   useLayoutEffect(() => {
     if (previousOrientation.current !== portrait) {
@@ -38,12 +38,11 @@ export function useScrollController(portrait: boolean) {
       // reading position before a resize observer can reinterpret the old y.
       const saved = location.current
       const section = document.getElementById('scene-' + String(saved.scene).padStart(2, '0'))
-      const savedBeat = lastPortrait.current.scene === saved.scene ? lastPortrait.current.beat : 1
-      const target = portrait ? section?.querySelector('[data-beat="' + savedBeat + '"]') : section
+      const anchor = portrait && lastPortrait.current?.scene === saved.scene ? lastPortrait.current : null
+      const target = anchor ? section?.querySelector('[data-beat="' + anchor.beat + '"]') : section
       if (target) {
         const bounds = target.getBoundingClientRect()
-        const fraction = portrait && lastPortrait.current.scene === saved.scene
-          ? lastPortrait.current.fraction : saved.sceneFraction
+        const fraction = anchor?.fraction ?? saved.sceneFraction
         // A short answer might be only three lines tall. Bringing its top to
         // the top edge would put the viewport center in the following scene.
         window.scrollTo({ top: scrollY + bounds.top + bounds.height * fraction - innerHeight / 2, behavior: 'instant' })
