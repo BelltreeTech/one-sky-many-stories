@@ -444,10 +444,15 @@ test.describe('portrait discoveries', () => {
     const sisters = await visitScene(page, 11);
     for (const beat of [1, 2]) await readAt(sisters.locator('[data-beat="' + beat + '"] .beat-text'));
     await expect.poll(() => [...failures].sort()).toEqual(['11.webp', 'before-memory.webp', 'ridge.webp', 'telescope.webp']);
-    await expect.poll(() => sisters.locator('.scene-image').evaluate((el: HTMLImageElement) => ({
-      url: el.currentSrc && new URL(el.currentSrc).pathname,
-      width: el.naturalWidth,
-    }))).toEqual({ url: deployPath + 'art/11.webp', width: oracle.scenes[10].width });
+    const fallback = sisters.locator('.scene-image');
+    await expect(fallback).toHaveAttribute('data-fallback', 'true');
+    await expect(fallback).toHaveAttribute('src', /\/art\/11\.webp(?:\?.*)?$/);
+    // WebKit may report 300 × 150 while the full response is still arriving.
+    const decoded = await fallback.evaluate(async (img: HTMLImageElement) => {
+      await img.decode();
+      return { url: new URL(img.currentSrc).pathname, width: img.naturalWidth, height: img.naturalHeight };
+    });
+    expect(decoded).toEqual({ url: deployPath + 'art/11.webp', width: oracle.scenes[10].width, height: oracle.scenes[10].height });
     expect(await sisters.locator('.passage').textContent()).toBe(oracle.scenes[10].text);
     await expectReadable(await visitScene(page, 20));
   });
