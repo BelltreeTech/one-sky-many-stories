@@ -3,6 +3,14 @@
 export function preserveReadingHistory() {
   const entryKey = 'oneSkyReading'
   const address = () => location.pathname + location.search + location.hash
+  const sceneFragment = /^#scene-(0[1-9]|1[0-9]|20)$/
+  const coverAddress = () => sceneFragment.test(location.hash) ? location.pathname + location.search : address()
+  function releaseFragment() {
+    if (!sceneFragment.test(location.hash)) return
+    try { history.replaceState(history.state, '', coverAddress()) } catch { /* Native history remains available. */ }
+  }
+  const matchesEntry = (url: string | undefined, y: number | undefined) =>
+    url === address() || (y === 0 && url === coverAddress())
 
   // Browsers may snapshot history.state before pagehide. Associate a tab's
   // final scroll offset with this history entry while the document is active.
@@ -19,8 +27,8 @@ export function preserveReadingHistory() {
       const stored = JSON.parse(sessionStorage.getItem(storageKey()) ?? 'null')
       if (Array.isArray(stored)) {
         const [url, y, scene, beat, progress] = stored
-        if (url === address()) return { address: url, y, scene, beat, progress }
-      } else if (stored?.address === address()) return stored
+        if (matchesEntry(url, y)) return { address: url, y, scene, beat, progress }
+      } else if (stored && matchesEntry(stored.address, stored.y)) return stored
     } catch { /* History still works if session storage is unavailable. */ }
     return history.state?.[entryKey]
   }
@@ -34,7 +42,7 @@ export function preserveReadingHistory() {
     const rect = anchor.getBoundingClientRect()
     const section = anchor.closest<HTMLElement>('[data-scene]')
     const place = {
-      address: address(), y: scrollY, scene: section?.id,
+      address: scrollY === 0 ? coverAddress() : address(), y: scrollY, scene: section?.id,
       beat: anchor.dataset.beat, progress: Math.max(0, Math.min(1, (middle - rect.top) / Math.max(1, rect.height))),
     }
     try {
@@ -58,8 +66,8 @@ export function preserveReadingHistory() {
   const saved = readPlace()
   const restoration = new AbortController()
   const cancelRestore = () => restoration.abort()
-  const hasPlace = saved?.address === address() && Number.isFinite(saved.y) && saved.y >= 0 && Number.isFinite(saved.progress)
-  const linkedScene = /^#scene-(0[1-9]|1[0-9]|20)$/.test(location.hash) ? location.hash.slice(1) : ''
+  const hasPlace = saved && matchesEntry(saved.address, saved.y) && Number.isFinite(saved.y) && saved.y >= 0 && Number.isFinite(saved.progress)
+  const linkedScene = sceneFragment.test(location.hash) ? location.hash.slice(1) : ''
   const sceneId = hasPlace ? saved.scene : linkedScene
   const section = sceneId ? document.getElementById(sceneId) : null
   if (section) {
@@ -70,6 +78,9 @@ export function preserveReadingHistory() {
         return
       }
       if (saved.y === 0) {
+        // Some WebKit loads apply the fragment after pageshow. A reader who
+        // returned to the cover should have a cover URL in this history entry.
+        releaseFragment()
         window.scrollTo({ top: 0, behavior: 'instant' })
         return
       }
@@ -97,7 +108,12 @@ export function preserveReadingHistory() {
   // Some browsers snapshot the history entry before pagehide. Commit a
   // completed gesture while the document is still active, including a return
   // to the cover immediately before a reload of a chapter link.
-  const rememberCover = () => { if (scrollY === 0 && savedY !== 0) remember() }
+  const rememberCover = () => {
+    if (scrollY === 0 && savedY !== 0) {
+      cancelRestore()
+      remember()
+    }
+  }
   window.addEventListener('scroll', rememberCover, { passive: true })
   document.addEventListener('scrollend', remember)
   const whenHidden = () => { if (document.hidden) remember() }
