@@ -9,6 +9,29 @@ function sha256(bytes: Buffer) {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
+test('the whole opening sentence fits above phone browser chrome without scrolling', async ({ page }) => {
+  // iPhone 16 Safari Simulator reports its expanded glass controls at y=769.
+  // Reserve 62 px above and 90 below the web view, plus 12 px breathing room.
+  const height = 852 - 62 - 90;
+  await page.setViewportSize({ width: 393, height });
+  await openBook(page);
+  const firstSentence = oracle.scenes[0].text.slice(0, oracle.scenes[0].text.indexOf('.') + 1);
+  const lines = await sceneAt(page, 1).locator('.beat-text').evaluate((paragraph, sentence) => {
+    const node = paragraph.firstChild!;
+    if (!node.textContent?.startsWith(sentence)) throw new Error('Opening sentence differs from the PDF');
+    const range = document.createRange();
+    range.setStart(node, 0);
+    range.setEnd(node, sentence.length);
+    return [...range.getClientRects()].map(rect => ({ top: rect.top, bottom: rect.bottom }));
+  }, firstSentence);
+  expect(await page.evaluate(() => scrollY)).toBe(0);
+  expect(lines.length).toBeGreaterThan(0);
+  for (const line of lines) {
+    expect(line.top).toBeGreaterThanOrEqual(0);
+    expect(line.bottom).toBeLessThanOrEqual(height - 12);
+  }
+});
+
 test('twenty illustrations and passages match the PDF in the production reader', async ({ page }, info) => {
   const isPortrait = info.project.name !== 'desktop-chromium';
   const deviceName = info.project.name === 'ipad-webkit' ? 'ipad' : 'iphone';
@@ -16,12 +39,15 @@ test('twenty illustrations and passages match the PDF in the production reader',
   const measurements: Array<{ scene: number; beat: number } & Awaited<ReturnType<typeof measureReadingContrast>>> = [];
   page.on('response', response => { if (/^https?:/.test(response.url())) resources.set(response.url(), response); });
   await openBook(page);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('main')).toHaveCount(1);
   const story = JSON.parse(await readFile('src/data/story.json', 'utf8'));
   expect(story.title).toBe(oracle.title);
   expect(story.scenes.map(({ id, text, width, height }: PDFPage) => ({ id, text, width, height }))).toEqual(oracle.scenes);
   expect(oracle.scenes.map(scene => scene.id)).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(oracle.title, { ignoreCase: true });
+  if (isPortrait) await captureFrame(page, deviceName + '-landing');
 
   // Late scenes should not already have fetched every original at initial load.
   const illustrationPath = isPortrait ? '/portrait/' : '/art/';
@@ -56,6 +82,8 @@ test('twenty illustrations and passages match the PDF in the production reader',
         expect([asset.width, asset.height]).toEqual([source.width, source.height]);
       }
       expect(asset.alt.trim()).not.toBe('');
+      await expect(scene.getByRole('img', { name: asset.alt, exact: true })).toHaveCount(1);
+      expect(await passage.evaluate(el => getComputedStyle(el).userSelect)).not.toBe('none');
       const publicFile = isPortrait ? 'portrait/' + String(source.id).padStart(2, '0') + '.webp' : story.scenes[source.id - 1].image;
       expect(new URL(asset.url).pathname).toBe(deployPath + publicFile);
       const served = resources.get(asset.url)!;
@@ -72,6 +100,11 @@ test('twenty illustrations and passages match the PDF in the production reader',
         expect(result.minimum, 'Visible text against the actual background on scene ' + source.id).toBeGreaterThanOrEqual(4.5);
       }
       if (isPortrait && beatStart) {
+        if (source.id === 7 || source.id === 11) {
+          await mainImage.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+          await mainImage.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+          await captureFrame(page, deviceName + '-' + String(source.id).padStart(2, '0') + '-art');
+        }
         const answer = passage.locator('[data-beat="2"] .beat-text');
         await readAt(answer);
         if (source.id === 8) {

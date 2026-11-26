@@ -6,7 +6,7 @@ const baseURL = publicURL || origin + (process.env.VITE_BASE_PATH || '/one-sky-m
 
 export default defineConfig({
   testDir: './tests',
-  outputDir: publicURL ? './artifacts/public-portrait-qa/test-results' : './artifacts/test-results',
+  outputDir: publicURL ? './artifacts/public-webtoon-qa/test-results' : './artifacts/webtoon-qa/test-results',
   timeout: 90_000,
   expect: { timeout: 8_000 },
   workers: 2,

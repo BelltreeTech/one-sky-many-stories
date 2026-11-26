@@ -1,96 +1,77 @@
 import { expect } from '@playwright/test';
-import { test, openBook, oracle, secondBeat, sceneAt, visitScene, passageReadable, readAt } from './reader-harness';
+import { test, openBook, oracle, secondBeat, visitScene, passageReadable, readAt } from './reader-harness';
 
 declare global {
   interface Window {
-    __voiceCommands?: string[];
-    __failVoice?: () => void;
+    __audioCalls?: string[];
   }
 }
 
-test('Japanese read-along controls turn every readable page without a speech engine', async ({ page }, info) => {
+test('opening the story immediately supports silent, human-led reading at every reading position', async ({ page }, info) => {
+  await page.addInitScript(() => {
+    const calls: string[] = [];
+    window.__audioCalls = calls;
+    Object.defineProperty(window, 'SpeechSynthesisUtterance', {
+      configurable: true, value: class { constructor(public text: string) {} },
+    });
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true, value: { getVoices: () => [], speak: () => calls.push('speak') },
+    });
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true, value: { getUserMedia: async () => { calls.push('microphone'); return new MediaStream(); } },
+    });
+    Object.defineProperty(window, 'MediaRecorder', {
+      configurable: true, value: class { constructor() { calls.push('recorder'); } },
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, 'play', {
+      configurable: true, value(this: HTMLMediaElement) {
+        if (!this.muted && this.volume > 0) calls.push('audible media');
+        return Promise.resolve();
+      },
+    });
+  });
+  await openBook(page);
+  await expect(page.getByRole('button')).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: '読み聞かせの操作' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  const isPortrait = info.project.name !== 'desktop-chromium';
+  let positions = 0;
+  for (const source of oracle.scenes) {
+    const scene = await visitScene(page, source.id);
+    const texts = isPortrait ? scene.locator('.beat-text') : scene.locator('.passage');
+    const count = isPortrait && secondBeat.has(source.id) ? 2 : 1;
+    await expect(texts).toHaveCount(count);
+    for (let beat = 0; beat < count; beat++) {
+      await readAt(texts.nth(beat));
+      expect(await passageReadable(texts.nth(beat))).toBe(true);
+      positions++;
+    }
+  }
+  expect(positions).toBe(isPortrait ? 23 : 20);
+  expect(await page.evaluate(() => window.__audioCalls)).toEqual([]);
+});
+
+test('the human reader can linger at the questions in scenes seven and eleven', async ({ page }, info) => {
+  if (info.project.name === 'desktop-chromium') await page.setViewportSize({ width: 393, height: 852 });
   await page.addInitScript(() => {
     Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: undefined });
     Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: undefined });
   });
   await openBook(page);
-  const dock = page.getByRole('navigation', { name: '読み聞かせの操作' });
-  await dock.getByRole('button', { name: '読み聞かせを始める' }).click();
-  const back = dock.getByRole('button', { name: '前へ' });
-  const next = dock.getByRole('button', { name: '次へ' });
-  await expect(back).toBeDisabled();
-  await expect(dock.getByText('声に出して読む')).toBeVisible();
-  const isPortrait = info.project.name !== 'desktop-chromium';
-  for (const source of oracle.scenes) {
-    const scene = sceneAt(page, source.id);
-    await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', String(source.id));
-    const split = isPortrait && secondBeat.has(source.id);
-    const first = scene.locator(split ? '[data-beat="1"] .beat-text' : '.passage');
-    await expect.poll(() => passageReadable(first), 'The button lands on readable English at scene ' + source.id).toBe(true);
-    if (split) {
-      const answer = scene.locator('[data-beat="2"] .beat-text');
-      await next.click();
-      await expect.poll(() => passageReadable(answer)).toBe(true);
-      await back.click();
-      await expect.poll(() => passageReadable(first)).toBe(true);
-      await next.click();
-      await expect.poll(() => passageReadable(answer)).toBe(true);
-    }
-    if (source.id < oracle.scenes.length) await next.click();
-  }
-  await dock.getByRole('button', { name: '最初へ' }).click();
-  await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '1');
-  await expect(back).toBeDisabled();
-  await expect.poll(() => passageReadable(sceneAt(page, 1).locator('.passage'))).toBe(true);
-});
-
-test('spoken English pauses, resumes, and stops before the next reading position', async ({ page }, info) => {
-  // The browser engine may have no installed English voice on CI. Record its
-  // Web Speech commands and exact utterance separately from human audio QA.
-  await page.addInitScript(() => {
-    const commands: string[] = [];
-    const speech = {
-      paused: false,
-      getVoices: () => [],
-      speak: (utterance: SpeechSynthesisUtterance) => {
-        commands.push('speak ' + utterance.text);
-        window.__failVoice = () => {
-          utterance.onerror?.call(utterance, new Event('error') as SpeechSynthesisErrorEvent);
-        };
-      },
-      pause() { this.paused = true; commands.push('pause'); },
-      resume() { this.paused = false; commands.push('resume'); },
-      cancel() { this.paused = false; commands.push('cancel'); },
-    };
-    Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: speech });
-    Object.defineProperty(window, 'SpeechSynthesisUtterance', {
-      configurable: true, value: class { constructor(public text: string) {} },
-    });
-    Object.defineProperty(window, '__voiceCommands', { value: commands });
-  });
-  const commands = () => page.evaluate(() => window.__voiceCommands!);
-  await openBook(page);
-  const dock = page.getByRole('navigation', { name: '読み聞かせの操作' });
-  await dock.getByRole('button', { name: '読み聞かせを始める' }).click();
-  await dock.getByRole('button', { name: '英語で聴く' }).click();
-  await dock.getByRole('button', { name: '一時停止' }).click();
-  await dock.getByRole('button', { name: '音声を再開' }).click();
-  await dock.getByRole('button', { name: '次へ' }).click();
-  await expect.poll(commands).toEqual(['speak ' + oracle.scenes[0].text, 'pause', 'resume', 'cancel']);
-  await expect(dock.getByRole('button', { name: '英語で聴く' })).toBeVisible();
-  if (info.project.name !== 'desktop-chromium') {
-    const scene = await visitScene(page, 11);
+  await page.clock.install();
+  for (const id of [7, 11]) {
+    const scene = await visitScene(page, id);
     const first = scene.locator('[data-beat="1"] .beat-text');
     const answer = scene.locator('[data-beat="2"] .beat-text');
     await readAt(first);
-    await dock.getByRole('button', { name: '英語で聴く' }).click();
-    const question = oracle.scenes[10].text.split(secondBeat.get(11)!)[0].trimEnd();
-    await expect.poll(async () => (await commands()).at(-1)).toBe('speak ' + question);
+    const start = await page.evaluate(() => scrollY);
+    await page.clock.fastForward(90_000);
+    expect(await page.evaluate(() => scrollY)).toBe(start);
+    expect(await passageReadable(first)).toBe(true);
+    expect(await passageReadable(answer)).toBe(false);
     await readAt(answer);
-    await expect.poll(async () => (await commands()).at(-1)).toBe('cancel');
+    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(start);
+    await readAt(first);
+    expect(await page.evaluate(() => scrollY)).toBe(start);
   }
-  await dock.getByRole('button', { name: '英語で聴く' }).click();
-  await page.evaluate(() => window.__failVoice!());
-  await expect(dock.getByRole('status')).toContainText('再生できませんでした');
-  await expect(dock.getByRole('button', { name: '次へ' })).toBeEnabled();
 });

@@ -10,7 +10,7 @@ export interface PDFPage {
   height: number;
 }
 
-export const screenshots = path.resolve(process.env.PLAYWRIGHT_PUBLIC_URL ? 'artifacts/public-portrait-qa/screenshots' : 'artifacts/screenshots');
+export const screenshots = path.resolve(process.env.PLAYWRIGHT_PUBLIC_URL ? 'artifacts/public-webtoon-qa/screenshots' : 'artifacts/webtoon-qa/screenshots');
 export const deployPath = process.env.PLAYWRIGHT_PUBLIC_URL ? new URL(process.env.PLAYWRIGHT_PUBLIC_URL).pathname : process.env.VITE_BASE_PATH || '/one-sky-many-stories/';
 // Independent landmarks from the PDF. A word appearing on either side of a
 // boundary changes what the reader sees before making the discovery.
@@ -26,18 +26,24 @@ export function expectImageFailures(page: Page, urls: string[]) {
   expectedImageErrors.set(page, new Set(urls));
 }
 
+function expectedImageFailure(page: Page, address: string) {
+  if (!address.startsWith('https:') && !address.startsWith('http:')) return false;
+  const url = new URL(address);
+  return expectedImageErrors.get(page)?.has(url.origin + url.pathname) ?? false;
+}
+
 export const test = base.extend({
   page: async ({ page }, use) => {
     const errors: string[] = [];
     await mkdir(screenshots, { recursive: true });
     page.on('pageerror', error => errors.push(error.message));
     page.on('console', entry => {
-      if (entry.type() === 'error' && !expectedImageErrors.get(page)?.has(entry.location().url)) {
+      if (entry.type() === 'error' && !expectedImageFailure(page, entry.location().url)) {
         errors.push(entry.text());
       }
     });
     page.on('response', response => {
-      if (response.status() >= 400 && !expectedImageErrors.get(page)?.has(response.url())) {
+      if (response.status() >= 400 && !expectedImageFailure(page, response.url())) {
         errors.push(response.status() + ' ' + response.url());
       }
     });
@@ -77,7 +83,7 @@ export async function visitScene(page: Page, id: number) {
 export async function passageReadable(passage: Locator) {
   return passage.evaluate(element => {
     const nodes = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-    const controls = [...document.querySelectorAll('.reading-dock button, .reading-dock .manual-reading, .masthead .edition-mark, .masthead .folio')]
+    const controls = [...document.querySelectorAll('.masthead .edition-mark, .masthead .folio')]
       .map(control => control.getBoundingClientRect()).filter(rect => rect.width && rect.height);
     let node = nodes.nextNode();
     let words = 0;
@@ -112,9 +118,11 @@ export async function expectReadable(scene: Locator) {
 
 export async function readAt(text: Locator) {
   await text.evaluate(element => {
-    const beat = element.closest('[data-beat]');
-    if (beat) beat.scrollIntoView({ block: 'start', behavior: 'instant' });
-    else element.scrollIntoView({ block: 'center', behavior: 'instant' });
+    const content = element.matches('.beat-text') ? element : element.querySelector('.beat-text') || element;
+    // This is a reading position in the native document. Keeping the text in
+    // the lower half leaves the adjacent drawing visible in the screenshot.
+    const rect = content.getBoundingClientRect();
+    window.scrollBy({ top: rect.bottom - innerHeight * .82, behavior: 'instant' });
   });
   await text.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   await expect.poll(() => passageReadable(text), 'Every text fragment fits in the visible reading area').toBe(true);
