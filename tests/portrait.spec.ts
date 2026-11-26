@@ -221,11 +221,26 @@ test.describe('portrait discoveries', () => {
     const scene = await visitScene(page, 11);
     await scene.locator('.portrait-stage').evaluate(stage => stage.scrollIntoView({ block: 'center', behavior: 'instant' }));
     await scene.locator('.scene-image').evaluate(async (image: HTMLImageElement) => { await image.decode(); });
+    await expect(scene.locator('.camera')).not.toHaveCSS('transform', 'none');
+    await expect(scene.locator('.afterglow')).toBeVisible();
     // On a loaded runner, multiple real-world frames can pass before the test
     // gets a turn. Deliver one final scroll, then advance actual app callbacks
     // in 64 ms steps without another input. Read the painted edge transforms.
     await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 2000)));
-    await page.evaluate(() => scrollBy({ top: 96, behavior: 'instant' }));
+    const impulse = await scene.evaluate(el => {
+      const from = scrollY;
+      scrollBy({ top: 96, behavior: 'instant' });
+      // WebKitGTK can hold the platform scroll event until its next real
+      // compositor frame. Deliver the document notification at this clock tick
+      // after moving the real viewport. The separate input test uses native events alone.
+      document.dispatchEvent(new Event('scroll', { bubbles: true }));
+      const stage = el.querySelector('.portrait-stage')!.getBoundingClientRect();
+      return { delta: scrollY - from, stageTop: stage.top, stageBottom: stage.bottom, frame: innerHeight,
+        wind: el.querySelector<HTMLElement>('.afterglow')!.dataset.wind };
+    });
+    expect(impulse.delta).toBe(96);
+    expect(impulse.stageTop).toBeLessThan(impulse.frame);
+    expect(impulse.stageBottom).toBeGreaterThan(0);
     const sample = () => scene.evaluate(el => {
       const edge = el.querySelector('.drifting-cloud')!;
       return { y: scrollY, time: performance.now(), wind: el.querySelector<HTMLElement>('.afterglow')!.dataset.wind,
@@ -236,7 +251,7 @@ test.describe('portrait discoveries', () => {
       await page.clock.runFor(16);
       pulse = await sample();
     }
-    expect(pulse.offset, 'A full fingertip stroke moves the cloud visibly – ' + JSON.stringify(pulse)).toBeGreaterThan(.5);
+    expect(pulse.offset, 'A full fingertip stroke moves the cloud visibly – ' + JSON.stringify({ impulse, pulse })).toBeGreaterThan(.5);
     const samples = [];
     for (let i = 0; i < 16; i++) {
       await page.clock.runFor(64);
