@@ -80,4 +80,30 @@ test('the human reader can linger at the questions in scenes seven and eleven', 
     await readAt(first);
     expect(await page.evaluate(() => scrollY)).toBe(start);
   }
+
+  if (info.project.name !== 'desktop-chromium') return;
+  for (const [id, secondStarts] of secondBeat) {
+    const scene = await visitScene(page, id);
+    const original = oracle.scenes[id - 1].text;
+    for (const crossIllustration of [false, true]) {
+      await scene.evaluate((section, across) => {
+        const parts = section.querySelectorAll('.beat-text');
+        const first = parts[0].firstChild as Text;
+        const end = (across ? parts[1] : parts[0]).firstChild as Text;
+        // Leave one character outside either end of the cross-picture selection.
+        getSelection()!.setBaseAndExtent(first, across ? 1 : 0, end, end.length - (across ? 1 : 0));
+      }, crossIllustration);
+      await page.keyboard.press('ControlOrMeta+c');
+      const sink = await page.evaluateHandle(() => {
+        const field = document.body.appendChild(document.createElement('textarea'));
+        field.focus({ preventScroll: true });
+        return field;
+      });
+      await page.keyboard.press('ControlOrMeta+v');
+      const pasted = await sink.evaluate(field => { const value = field.value; field.remove(); return value; });
+      await sink.dispose();
+      const expected = crossIllustration ? original.slice(1, -1) : original.slice(0, original.indexOf(secondStarts)).trimEnd();
+      expect(pasted.replace(/\r?\n/g, ' '), 'Pasted PDF text from scene ' + id).toBe(expected);
+    }
+  }
 });
