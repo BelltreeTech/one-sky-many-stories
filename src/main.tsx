@@ -4,13 +4,13 @@ import story from './data/story.json'
 import { SceneRenderer } from './components/SceneRenderer'
 import { ReadingHeader } from './components/ReadingHeader'
 import { ParticleEngine } from './engine/ParticleEngine'
-import { useMotionEnabled, usePortraitScreen, useScrollController } from './engine/scrollController'
+import { useMotionEnabled, useScrollController } from './engine/scrollController'
 import { preserveReadingHistory } from './engine/readingHistory'
 import { refreshScenes } from './engine/animationTimeline'
 import './styles/reader.css'
 import './styles/portrait.css'
 
-function useCoverPriority(portrait: boolean) {
+function useCoverPriority() {
   const [ready, setReady] = useState(() => !!window.scrollY || !!location.hash)
   useLayoutEffect(() => {
     if (ready) return
@@ -28,14 +28,13 @@ function useCoverPriority(portrait: boolean) {
       cover.removeEventListener('error', release)
       window.removeEventListener('scroll', release)
     }
-  }, [portrait, ready])
+  }, [ready])
   return ready
 }
 
 function App() {
-  const portrait = usePortraitScreen()
-  const prefetch = useCoverPriority(portrait)
-  const place = useScrollController(portrait)
+  const prefetch = useCoverPriority()
+  const place = useScrollController()
   const current = place.scene
   const motion = useMotionEnabled()
   useLayoutEffect(preserveReadingHistory, [])
@@ -57,9 +56,9 @@ function App() {
     }
   }, [])
   return <>
-    <ReadingHeader current={current} total={story.scenes.length} portrait={portrait} />
-    <main className={portrait ? 'portrait-reader' : undefined}>{story.scenes.map(scene => <SceneRenderer key={scene.id} scene={scene} motion={motion} portrait={portrait} prefetch={prefetch || scene.id === 1} />)}</main>
-    <ParticleEngine scene={portrait ? current : undefined} running={motion && (!portrait || ![7, 8, 11, 14, 15].includes(current))} />
+    <ReadingHeader current={current} total={story.scenes.length} />
+    <main className="portrait-reader">{story.scenes.map(scene => <SceneRenderer key={scene.id} scene={scene} motion={motion} prefetch={prefetch || scene.id === 1} />)}</main>
+    <ParticleEngine scene={current} running={motion && ![7, 8, 11, 14, 15].includes(current)} />
   </>
 }
 

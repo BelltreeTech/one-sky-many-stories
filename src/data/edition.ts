@@ -6,7 +6,6 @@ export interface Scene {
   image: string
   width: number
   height: number
-  portrait?: { image: string; width: number; height: number }
 }
 
 export const chapters = [

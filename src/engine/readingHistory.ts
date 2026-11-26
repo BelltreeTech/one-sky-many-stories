@@ -6,8 +6,7 @@ export function preserveReadingHistory() {
 
   function remember() {
     const middle = innerHeight / 2
-    const selectors = document.querySelector('main.portrait-reader') ? '[data-beat]' : '[data-scene]'
-    const elements = document.querySelectorAll<HTMLElement>(selectors)
+    const elements = document.querySelectorAll<HTMLElement>('[data-beat]')
     const anchor = Array.from(elements).find(element => element.getBoundingClientRect().bottom >= middle)
     if (!anchor) return
     const rect = anchor.getBoundingClientRect()
@@ -22,32 +21,37 @@ export function preserveReadingHistory() {
   const saved = history.state?.[entryKey]
   const restoration = new AbortController()
   const cancelRestore = () => restoration.abort()
-  if (saved?.address === address && saved.y > 0 && Number.isFinite(saved.progress)) {
-    const section = document.getElementById(saved.scene)
-    const anchor = section?.querySelector<HTMLElement>('[data-beat="' + Number(saved.beat) + '"]') ?? section
-    if (anchor) {
-      const restore = () => {
-        const rect = anchor.getBoundingClientRect()
-        const top = scrollY + rect.top + rect.height * saved.progress - innerHeight / 2
-        window.scrollTo({ top, behavior: 'instant' })
+  const hasPlace = saved?.address === address && saved.y > 0 && Number.isFinite(saved.progress)
+  const linkedScene = /^#scene-(0[1-9]|1[0-9]|20)$/.test(location.hash) ? location.hash.slice(1) : ''
+  const sceneId = hasPlace ? saved.scene : linkedScene
+  const section = sceneId ? document.getElementById(sceneId) : null
+  if (section) {
+    const anchor = (hasPlace && section.querySelector<HTMLElement>('[data-beat="' + Number(saved.beat) + '"]')) || section
+    const restore = () => {
+      if (!hasPlace) {
+        section.scrollIntoView({ block: 'start', behavior: 'instant' })
+        return
       }
-      // On iPad Safari the first layout can use fallback fonts and the browser
-      // can still be settling its own offset when document.fonts.ready fires.
-      // Recompute on the first displayed frame, unless the reader intervened.
-      const options = { once: true, passive: true, signal: restoration.signal }
-      for (const input of ['pointerdown', 'wheel', 'keydown']) window.addEventListener(input, cancelRestore, options)
-      window.addEventListener('pageshow', event => {
-        if (!event.persisted) requestAnimationFrame(() => {
-          if (!restoration.signal.aborted) restore()
-          cancelRestore()
-        })
-      }, options)
-      restore()
-      const restored = scrollY
-      void document.fonts.ready.then(() => {
-        if (!restoration.signal.aborted && Math.abs(scrollY - restored) < 2) restore()
-      })
+      const rect = anchor.getBoundingClientRect()
+      const top = scrollY + rect.top + rect.height * saved.progress - innerHeight / 2
+      window.scrollTo({ top, behavior: 'instant' })
     }
+    // On iPad Safari the first layout can use fallback fonts and the browser
+    // can still be settling its own offset when document.fonts.ready fires.
+    // Recompute on the first displayed frame, unless the reader intervened.
+    const options = { once: true, passive: true, signal: restoration.signal }
+    for (const input of ['pointerdown', 'wheel', 'keydown']) window.addEventListener(input, cancelRestore, options)
+    window.addEventListener('pageshow', event => {
+      if (!event.persisted) requestAnimationFrame(() => {
+        if (!restoration.signal.aborted) restore()
+        cancelRestore()
+      })
+    }, options)
+    restore()
+    const restored = scrollY
+    void document.fonts.ready.then(() => {
+      if (!restoration.signal.aborted && Math.abs(scrollY - restored) < 2) restore()
+    })
   }
   const whenHidden = () => { if (document.hidden) remember() }
   window.addEventListener('pagehide', remember)

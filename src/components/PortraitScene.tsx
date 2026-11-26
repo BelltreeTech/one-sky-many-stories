@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { asset, chapters, type Scene } from '../data/edition'
-import { portraitBeats, portraitDimensions, portraitDirections, portraitFile } from '../data/portrait'
+import { portraitBeats } from '../engine/typographyReveal'
+import { portraitDimensions, portraitDirections, portraitFile } from '../data/portrait'
 
 const portraitDescriptions: Partial<Record<number, string>> = {
   8: 'Luna points to the stars. Leo brings his eye to the brass telescope as Noah steadies the tripod.',
@@ -28,7 +29,7 @@ function useImageRecovery(near: boolean, failedFallbackAt?: number) {
     window.addEventListener('online', retry)
     // A server can recover from an HTTP error without the device going offline.
     // Give a blank illustration one extra chance during this visit. A working
-    // landscape fallback stays visible until the reader returns or reconnects.
+    // preview stays visible until the reader returns or reconnects.
     const timer = needsPixels && !usedTimedRetry.current && navigator.onLine
       ? window.setTimeout(() => { usedTimedRetry.current = true; retry() }, 1000) : undefined
     return () => {
@@ -69,18 +70,16 @@ export function PortraitScene({ scene, near }: { scene: Scene; near: boolean }) 
   const { attempt, failed: fallback, markFailed } = useImageRecovery(near, unavailableAt)
   const [width, height] = portraitDimensions(scene.id)
   const direction = portraitDirections[scene.id]
-  const filename = fallback ? scene.image : portraitFile(scene.id)
+  const filename = portraitFile(scene.id, fallback)
   const bothFailed = fallback && unavailableAt === attempt
   const src = imageURL(filename, fallback && unavailableAt < 0 ? 0 : attempt)
   const chapter = chapters[scene.chapter - 1]
   const opener = (scene.id - 1) % 4 === 0
   const first = scene.id === 1
   const asksBeforeArt = scene.id === 7 || scene.id === 11
-  const alt = fallback ? scene.alt : portraitDescriptions[scene.id] ?? scene.alt
+  const alt = portraitDescriptions[scene.id] ?? scene.alt
   const art = <span className="portrait-stage" style={{
     '--portrait-ratio': width / height, '--focus': direction.focus,
-    '--cover-art': first && near && !bothFailed ? 'url(' + src + ')' : undefined,
-    '--atmosphere': near ? 'url(' + asset('atmosphere/' + String(scene.id).padStart(2, '0') + '.webp') + ')' : undefined,
   } as CSSProperties}>
     <span className="portrait-camera camera">
       <span className="portrait-sheet">
