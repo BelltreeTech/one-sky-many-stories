@@ -44,8 +44,7 @@ test('the whole opening sentence fits above phone browser chrome without scrolli
 test('twenty illustrations and passages match the PDF in the production reader', async ({ page }, info) => {
   // Decoding and sampling all 23 composed text frames can exceed 90 s on iPad WebKit in CI.
   test.setTimeout(180_000);
-  const isPortrait = info.project.name !== 'desktop-chromium';
-  const deviceName = info.project.name === 'ipad-webkit' ? 'ipad' : 'iphone';
+  const deviceName = info.project.name.split('-')[0];
   const resources = new Map<string, Response>();
   const measurements: Array<{ scene: number; beat: number } & Awaited<ReturnType<typeof measureReadingContrast>>> = [];
   page.on('response', response => { if (/^https?:/.test(response.url())) resources.set(response.url(), response); });
@@ -58,18 +57,17 @@ test('twenty illustrations and passages match the PDF in the production reader',
   expect(oracle.scenes.map(scene => scene.id)).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(oracle.title, { ignoreCase: true });
-  if (isPortrait) await captureFrame(page, deviceName + '-landing');
+  await captureFrame(page, deviceName + '-landing');
 
   // Late scenes should not already have fetched every original at initial load.
-  const illustrationPath = isPortrait ? '/portrait/' : '/art/';
-  expect([...resources.keys()].filter(url => url.includes(illustrationPath)).length).toBeLessThan(20);
+  expect([...resources.keys()].filter(url => url.includes('/portrait/')).length).toBeLessThan(20);
   for (const source of oracle.scenes) {
     await test.step('Read PDF page ' + source.id, async () => {
       const scene = await visitScene(page, source.id);
       const passage = scene.locator('.passage');
       expect(await passage.textContent(), 'The original text appears once, verbatim and in order').toBe(source.text);
       const beatStart = secondBeat.get(source.id);
-      if (isPortrait && beatStart) {
+      if (beatStart) {
         const boundary = source.text.indexOf(beatStart);
         expect(boundary).toBeGreaterThan(0);
         const beats = passage.locator('[data-beat] .beat-text');
@@ -86,31 +84,23 @@ test('twenty illustrations and passages match the PDF in the production reader',
         await element.decode();
         return { width: element.naturalWidth, height: element.naturalHeight, url: element.currentSrc, alt: element.alt };
       });
-      if (isPortrait) {
-        expect(asset.height, 'A portrait composition is displayed on the phone').toBeGreaterThan(asset.width);
-        expect(asset.width).toBeGreaterThanOrEqual(393);
-      } else {
-        expect([asset.width, asset.height]).toEqual([source.width, source.height]);
-      }
+      expect(asset.height, 'The primary composition is vertical on every screen').toBeGreaterThan(asset.width);
+      expect(asset.width).toBeGreaterThanOrEqual(393);
       expect(asset.alt.trim()).not.toBe('');
       await expect(scene.getByRole('img', { name: asset.alt, exact: true })).toHaveCount(1);
       expect(await passage.evaluate(el => getComputedStyle(el).userSelect)).not.toBe('none');
-      const publicFile = isPortrait ? 'portrait/' + String(source.id).padStart(2, '0') + '.webp' : story.scenes[source.id - 1].image;
+      const publicFile = 'portrait/' + String(source.id).padStart(2, '0') + '.webp';
       expect(new URL(asset.url).pathname).toBe(deployPath + publicFile);
       const served = resources.get(asset.url)!;
       expect(served.headers()['content-type']).toMatch(/^image\/webp\b/);
       expect(sha256(await served.body())).toBe(sha256(await readFile(path.join('public', publicFile))));
       await expectNoOverflow(page);
-      if (isPortrait || source.id === 1) {
-        const name = isPortrait ? deviceName + '-' + String(source.id).padStart(2, '0') : 'desktop-opening';
-        await page.screenshot({ path: path.join(screenshots, name + '.png'), scale: 'css' });
-      }
-      if (isPortrait) {
-        const result = await measureReadingContrast(page, beatStart ? passage.locator('[data-beat="1"] .beat-text') : passage);
-        measurements.push({ scene: source.id, beat: 1, ...result });
-        expect(result.minimum, 'Visible text against the actual background on scene ' + source.id).toBeGreaterThanOrEqual(4.5);
-      }
-      if (isPortrait && beatStart) {
+      const name = deviceName === 'desktop' && source.id === 1 ? 'desktop-opening' : deviceName + '-' + String(source.id).padStart(2, '0');
+      await captureFrame(page, name);
+      const firstContrast = await measureReadingContrast(page, passage.locator('[data-beat="1"] .beat-text'));
+      measurements.push({ scene: source.id, beat: 1, ...firstContrast });
+      expect(firstContrast.minimum, 'Visible text against the actual background on scene ' + source.id).toBeGreaterThanOrEqual(4.5);
+      if (beatStart) {
         if (source.id === 7 || source.id === 11) {
           await mainImage.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
           await mainImage.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
@@ -130,15 +120,15 @@ test('twenty illustrations and passages match the PDF in the production reader',
       }
     });
   }
-  if (isPortrait) {
-    await writeFile(path.join(screenshots, deviceName + '-reading-contrast.json'), JSON.stringify(measurements, null, 2) + '\n');
-    for (const file of ['portrait/telescope.webp', 'portrait/ridge.webp', 'portrait/before-memory.webp']) {
-      const served = resources.get(new URL(file, page.url()).href);
-      expect(served, file + ' was fetched on the reading route').toBeDefined();
-      expect(served!.headers()['content-type']).toMatch(/^image\/webp\b/);
-      expect(sha256(await served!.body())).toBe(sha256(await readFile(path.join('public', file))));
-    }
+  expect(measurements).toHaveLength(23);
+  await writeFile(path.join(screenshots, deviceName + '-reading-contrast.json'), JSON.stringify(measurements, null, 2) + '\n');
+  for (const file of ['portrait/telescope.webp', 'portrait/ridge.webp', 'portrait/before-memory.webp']) {
+    const served = resources.get(new URL(file, page.url()).href);
+    expect(served, file + ' was fetched on the reading route').toBeDefined();
+    expect(served!.headers()['content-type']).toMatch(/^image\/webp\b/);
+    expect(sha256(await served!.body())).toBe(sha256(await readFile(path.join('public', file))));
   }
+  expect([...resources.keys()].filter(url => new URL(url).pathname.includes('/art/'))).toEqual([]);
 
   const fonts = await page.evaluate(() => [...document.fonts]
     .filter(face => face.status === 'loaded').map(face => face.family.replace(/['"]/g, '')));
@@ -232,15 +222,15 @@ test('native scroll moves the active camera and releases distant artwork', async
   await expect(scene.locator('img.scene-image')).toHaveAttribute('src', /\.webp$/);
 });
 
-test('rotating between portrait art and the landscape PDF retains the reading scene', async ({ page }) => {
+test('rotating the reading strip preserves the same passage and vertical artwork', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await openBook(page);
   const scene = await visitScene(page, 17);
   await readAt(scene.locator('[data-beat="1"] .beat-text'));
-  for (const [width, height, folder] of [[852, 393, 'art'], [393, 852, 'portrait']] as const) {
+  for (const [width, height] of [[852, 393], [393, 852]] as const) {
     await page.setViewportSize({ width, height });
     await expect.poll(() => scene.locator('.scene-image').evaluate((image: HTMLImageElement) =>
-      image.naturalWidth > 0 && new URL(image.currentSrc).pathname)).toBe(deployPath + folder + '/17.webp');
+      image.naturalWidth > 0 && new URL(image.currentSrc).pathname)).toBe(deployPath + 'portrait/17.webp');
     await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '17');
     expect(await scene.locator('.passage').textContent()).toBe(oracle.scenes[16].text);
     await expectNoOverflow(page);

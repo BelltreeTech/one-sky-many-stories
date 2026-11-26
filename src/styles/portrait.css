@@ -38,7 +38,7 @@
 .portrait-stage, .portrait-sheet, .portrait-camera { display: block; }
 .portrait-stage {
   position: relative; width: 100%; aspect-ratio: var(--portrait-ratio); overflow: clip;
-  background: var(--atmosphere,none) center / cover;
+  background: #0c1224;
   mask-image: linear-gradient(0deg,transparent,#000 13%,#000 92%,transparent);
 }
 .portrait-camera {
@@ -61,19 +61,27 @@
   }
 }
 @media (min-width: 650px) {
-  /* A wider tablet still opens on the first sentence. The entire original
-     sits inside the extended sky, preserving the friends at either edge. */
-  .opening .portrait-stage { aspect-ratio: auto; }
-  .opening .portrait-stage::before {
-    content: ''; position: absolute; inset: -5px;
-    background: var(--cover-art,none) center / 100% 100% no-repeat;
-    filter: blur(12px) brightness(.58); opacity: .86;
+  :root { --strip-width: clamp(21rem, 54svh, 41rem); }
+  body {
+    background: radial-gradient(ellipse at 50% 14rem,#20233b 0,#101528 48rem,#0c1020 86rem);
   }
-  .opening .portrait-camera {
-    width: min(100%,calc(max(25rem,100svh - 15rem) * var(--portrait-ratio)));
-    aspect-ratio: var(--portrait-ratio); height: auto; margin-inline: auto;
-    mask-image: linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);
+  .portrait-reader, .strip-masthead {
+    width: min(100%,var(--strip-width)); margin-inline: auto;
+    --gutter: clamp(24px,3.5svh,44px);
   }
+  .portrait-story { container-type: inline-size; }
+  .opening .portrait-story {
+    --overlap: clamp(64px,10svh,104px);
+    --title-space: clamp(145px,22svh,225px);
+  }
+  .opening .portrait-heading {
+    min-height: var(--title-space); margin-bottom: calc(-1 * var(--title-space));
+    padding-bottom: 2.5rem;
+    background: linear-gradient(#0c1224ed,#0c122493 58%,transparent);
+  }
+  .portrait-heading h1 { font-size: clamp(3.35rem,15cqw,6.2rem); }
+  .portrait-heading h2 { font-size: clamp(2rem,8cqw,3.3rem); }
+  .portrait-passage { font-size: clamp(1.125rem,calc(.96rem + 1cqw),1.45rem); }
 }
 .portrait-sheet { position: relative; width: 100%; height: 100%; }
 .portrait-sheet .scene-image { display: block; width: 100%; height: 100%; object-fit: contain; }
@@ -97,6 +105,7 @@
 }
 .quest .reading-beat:first-child .portrait-stage { margin-top: -.35rem; }
 .quest .reading-beat:nth-child(2) .beat-text { margin-top: calc(-1 * var(--overlap)); }
+.portrait-stage, .lens-field { -webkit-user-select: none; user-select: none; }
 .lens-field { display: block; position: relative; overflow: clip; }
 .lens-field {
   width: 100%; aspect-ratio: 941 / 1672;

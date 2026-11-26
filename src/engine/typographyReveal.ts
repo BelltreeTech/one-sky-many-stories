@@ -1,8 +1,10 @@
-import type { gsap } from 'gsap'
+import type { Scene } from '../data/edition'
+import { portraitDirections } from '../data/portrait'
 
-// Keep the paragraph selectable and legible even if the reader stops mid-entry.
-export function revealPassage(timeline: gsap.core.Timeline, passage: HTMLElement) {
-  timeline.fromTo(passage, { y: 10, opacity: 0.84 }, {
-    y: 0, opacity: 1, duration: 0.2, ease: 'power1.out',
-  }, 0)
+// Each discovery is a separate, selectable passage reached by native scrolling.
+export function portraitBeats(scene: Scene): string[] {
+  const marker = portraitDirections[scene.id]?.nextBeat
+  const index = marker ? scene.text.indexOf(marker) : -1
+  // The space preceding the next sentence stays in the original text node.
+  return index > 0 ? [scene.text.slice(0, index), scene.text.slice(index)] : [scene.text]
 }

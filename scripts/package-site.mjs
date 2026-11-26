@@ -13,9 +13,11 @@ if (!existsSync(join(dist, 'index.html'))) {
 
 const required = new Set(['index.html', 'star.svg', 'atmosphere/night-sky.webp', 'portrait/telescope.webp', 'portrait/ridge.webp', 'portrait/before-memory.webp']);
 for (const scene of story.scenes) {
+  const filename = String(scene.id).padStart(2, '0') + '.webp';
   required.add(scene.image);
-  required.add(`atmosphere/${String(scene.id).padStart(2, '0')}.webp`);
-  required.add(`portrait/${String(scene.id).padStart(2, '0')}.webp`);
+  required.add('atmosphere/' + filename);
+  required.add('portrait/' + filename);
+  required.add('portrait/preview/' + filename);
   if (scene.portrait) required.add(scene.portrait.image);
 }
 

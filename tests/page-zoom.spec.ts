@@ -48,3 +48,24 @@ test('page zoom keeps the visible paragraph and optical pinch leaves native scro
   await setPageZoom(page, 1);
   expect(await page.evaluate(() => scrollY)).toBe(location + 140);
 });
+
+test('a zoom wheel event lets a simultaneous column reflow preserve the reading position', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openBook(page);
+  const passage = sceneAt(page, 17).locator('.beat-text');
+  await passage.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '17');
+  // Replay the event and layout change together. Headless browsers do not
+  // expose the platform's actual page zoom via a Ctrl+wheel command.
+  const drift = await passage.evaluate(async el => {
+    const frame = () => new Promise<void>(done => requestAnimationFrame(() => done()));
+    const center = () => { const rect = el.getBoundingClientRect(); return (rect.top + rect.bottom) / 2; };
+    await frame(); await frame();
+    const before = center();
+    window.dispatchEvent(new WheelEvent('wheel', { ctrlKey: true, deltaY: -100, bubbles: true }));
+    document.documentElement.style.setProperty('--strip-width', 'calc(54svh + 9px)');
+    await frame(); await frame(); await frame();
+    return Math.abs(center() - before);
+  });
+  expect(drift).toBeLessThan(3);
+});

@@ -1,8 +1,8 @@
 # One Sky, Many Stories — Cinematic Web Edition
 
-全20場面の英語絵本。Luna、Leo、Noahが、一つの星団をめぐる日本、ギリシャ、ニュージーランドの物語を語る。縦画面には描き下ろした挿絵、横画面にはPDFの横長原画を使う。iPhone 16の縦持ち（393 × 852 CSS px）を基準に設計した。
+全20場面の英語絵本。Luna、Leo、Noahが、一つの星団をめぐる日本、ギリシャ、ニュージーランドの物語を語る。全20場面に描き下ろした縦の挿絵を使う。横持ちやPCでは、中央の一列に同じ縦絵と英文が続く。iPhone 16の縦持ち（393 × 852 CSS px）を基準に設計した。
 
-[iPhoneで絵本を読む](https://belltreetech.github.io/one-sky-many-stories/) · [スマートフォンの冒頭画面](docs/screenshots/iphone-01.webp) · [デスクトップの冒頭画面](docs/screenshots/desktop-opening.webp) · [公式スキルの導入記録](docs/tooling.md)
+[絵本の最初から読む](https://belltreetech.github.io/one-sky-many-stories/) · [第5場面「Subaru」を開く](https://belltreetech.github.io/one-sky-many-stories/#scene-05) · [スマートフォンの冒頭画面](docs/screenshots/iphone-01.webp) · [デスクトップの冒頭画面](docs/screenshots/desktop-opening.webp) · [公式スキルの導入記録](docs/tooling.md)
 
 ## 読み聞かせる
 
@@ -51,16 +51,16 @@ python3 -m venv .private/extract-env
 
 ## 表示とアニメーションの構成
 
-各場面は独立したHTMLセクション。縦画面では縦原画を表示し、画面端に大気と光を重ねる。スクロールを止めるとその位置で読める。本文は選択・コピーできる。幅の広い画面では、挿絵に重なる左側に英文が流れる。
+各場面は独立したHTMLセクション。画面の向きにかかわらず縦原画を同じ比率で表示する。スクロールを止めるとその位置で読める。本文は選択・コピーできる。幅の広い画面では、中央の絵の下端に英文が重なる。縦原画を取得できない場合は、同じ絵から書き出した幅360ピクセルのプレビューを表示する。
 
 | 担当 | 実装 | 動作 |
 |---|---|---|
 | Scene Renderer | [SceneRenderer.tsx](src/components/SceneRenderer.tsx) | 全景・背景・見出し・英文を配置。近い場面だけに画像URLを割り当てる。 |
-| Scroll Controller | [scrollController.ts](src/engine/scrollController.ts) | ネイティブスクロールの中央にある場面を追跡。通常・動作軽減・非表示タブを区別する。 |
-| Animation Timeline | [animationTimeline.ts](src/engine/animationTimeline.ts) | 画面内の場面にGSAP ScrollTriggerを設定し、外れたら解除。カメラが全景の範囲内でゆっくり動く。 |
-| Typography Reveal | [typographyReveal.ts](src/engine/typographyReveal.ts) | HTML段落の位置と濃度を短い区間で変化させる。通常時も本文は初めから読める。 |
-| Particle Engine | [ParticleEngine.tsx](src/engine/ParticleEngine.tsx) | 固定Canvas 1枚で星を明滅させる。描画解像度と更新頻度に上限を設け、動作軽減時・非表示タブでは停止。 |
-| Scene Transition | [sceneTransition.ts](src/engine/sceneTransition.ts) | 場面の出入りで上下の光量を変える。上方向・下方向とも同じスクロール位置に同期。 |
+| Scroll Controller | [scrollController.ts](src/engine/scrollController.ts) | ネイティブスクロールの中央にある場面を追跡。回転やSafariの文字拡大では直前の段落または絵の位置を保つ。 |
+| Animation Timeline | [portraitTimeline.ts](src/engine/portraitTimeline.ts) | 画面内の場面にGSAP ScrollTriggerを設定し、外れたら解除。カメラが全景の範囲内でゆっくり動く。 |
+| Typography Reveal | [typographyReveal.ts](src/engine/typographyReveal.ts) | 発見の場面の原文を問いと答えに分ける。途中に置いた絵を指で送ると次の文が見える。 |
+| Particle Engine | [ParticleEngine.tsx](src/engine/ParticleEngine.tsx) | 今読んでいる絵のCanvas 1枚で星を明滅させる。描画解像度と更新頻度に上限を設け、動作軽減時・非表示タブでは停止。 |
+| Scene Transition | [sceneTransition.ts](src/engine/sceneTransition.ts) | スクロール量から、思い出や神話の像が原画に重なる濃度を求める。上方向・下方向とも同じスクロール位置に同期。 |
 
 縦版の[演出設定](src/data/portrait.ts)は場面ごとの注視点、カメラの進み方、発見の場面にある英文の区切りを定める。[縦版タイムライン](src/engine/portraitTimeline.ts)は現在のスクロール位置から望遠鏡の視野や神話への移行を描く。原文は [story.json](src/data/story.json) に一度だけ保持する。セーフエリアには `viewport-fit=cover` と `env(safe-area-inset-*)`、表示高には `svh`・`dvh` を使う。本文は拡大に合わせて改行し、必要な高さまで場面が伸びる。
 
@@ -79,7 +79,9 @@ npm test
 
 ### 連続縦読み版の検証
 
-[縦版の検証記録と再現手順](docs/portrait-qa.md)に、iPhone・iPad・デスクトップで通過した69件の検査を記録した。全編の通読、19の場面境界、文字拡大、逆読み、画面回転、動きの軽減、通信復帰を含む。原文の照合は第7・8・11場面の後半も含む23箇所で行う。
+第5場面「Subaru」は横長のウィンドウでも992 × 1586の縦原画を表示する。横長の728 × 570、デスクトップの1440 × 900、iPhoneの393 × 852で同じ絵を確認した。[第5場面のiPhone表示](docs/screenshots/subaru-iphone.webp)・[横長ウィンドウでの表示](docs/screenshots/subaru-wide.webp)
+
+2026年11月26日の公開版 `7e8d673` をiOS 26.5のiPhone 16とiPad Airのシミュレーター上のSafariで開き、全20場面を結末まで通読した。分かれて現れる台詞も含め、23箇所の英語が原本と一致した。公開版のPlaywright検査は69件すべて成功し、配布した80ファイルは本番ビルドとバイト単位で一致した。端末別の画面写真、逆読み、文字拡大、動きの軽減、通信復帰の結果と再現方法を記録した。[縦版の検証記録](docs/portrait-qa.md)・[公開ワークフローの実行結果](https://github.com/BelltreeTech/one-sky-many-stories/actions/runs/45839999428)
 
 ### Foundation版の検証記録
 

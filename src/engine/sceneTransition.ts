@@ -1,6 +1,5 @@
-import type { gsap } from 'gsap'
-
-export function blendScene(timeline: gsap.core.Timeline, veil: HTMLElement) {
-  timeline.fromTo(veil, { opacity: 0.52 }, { opacity: 0, duration: 0.28 }, 0)
-  timeline.to(veil, { opacity: 0.42, duration: 0.18 }, 0.82)
+// Smoothly interpolate the lens and registered scene exposures in either scroll direction.
+export function between(value: number, start: number, end: number) {
+  const t = Math.max(0, Math.min(1, (value - start) / (end - start)))
+  return t * t * (3 - 2 * t)
 }

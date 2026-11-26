@@ -1,10 +1,7 @@
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { portraitDirections } from '../data/portrait'
 
-function between(value: number, start: number, end: number) {
-  const t = Math.max(0, Math.min(1, (value - start) / (end - start)))
-  return t * t * (3 - 2 * t)
-}
+import { between } from './sceneTransition'
 
 // The artwork and narration already travel together in document flow. These
 // local effects only follow the reader through the illustration's own frame.

@@ -10,7 +10,9 @@ export interface PDFPage {
   height: number;
 }
 
-export const screenshots = path.resolve(process.env.PLAYWRIGHT_PUBLIC_URL ? 'artifacts/public-webtoon-qa/screenshots' : 'artifacts/webtoon-qa/screenshots');
+const evidenceRoot = process.env.READER_QA_ARTIFACT_DIR ??
+  (process.env.PLAYWRIGHT_PUBLIC_URL ? 'artifacts/public-webtoon-qa' : 'artifacts/webtoon-qa');
+export const screenshots = path.resolve(evidenceRoot, 'screenshots');
 export const deployPath = process.env.PLAYWRIGHT_PUBLIC_URL ? new URL(process.env.PLAYWRIGHT_PUBLIC_URL).pathname : process.env.VITE_BASE_PATH || '/one-sky-many-stories/';
 // Independent landmarks from the PDF. A word appearing on either side of a
 // boundary changes what the reader sees before making the discovery.
