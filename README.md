@@ -79,6 +79,8 @@ npm test
 
 ### 連続縦読み版の検証
 
+11月27日朝の公開版 `657f277` では、第5場面「Subaru」のリンクを開き、表紙まで戻ってから再読み込みしても、表紙から読み続けられた。iOS 26.5のiPhone 16シミュレーター上のSafariで確認した。公開URLのPlaywright検査は102件すべて合格し、配信された全100ファイルが本番ビルドとバイト単位で一致した。[第5場面を開く](https://belltreetech.github.io/one-sky-many-stories/#scene-05)・[Safariと画像の通信復帰の検証記録](docs/portrait-qa.md#2026年11月27日朝の公開版-657f277)
+
 第5場面「Subaru」は横長のウィンドウでも992 × 1586の縦原画を表示する。横長の728 × 570、デスクトップの1440 × 900、iPhoneの393 × 852で同じ絵を確認した。[第5場面のiPhone表示](docs/screenshots/subaru-iphone.webp)・[横長ウィンドウでの表示](docs/screenshots/subaru-wide.webp)
 
 2026年11月27日に、縦版 `f8c220b` の公開を確認した。GitHub Pagesから取得した100ファイルが検査済みビルドとバイト単位で一致した。公開URLに対するPlaywright試験は99件すべて合格し、9種類の画面サイズで全20枚の縦構図を確認した。公開URLをiPhone 16のSafariシミュレーターで開き、第5場面を縦持ち、横持ち、再び縦持ちの順で読んだ。星団、ルナの指先、祖母が一枚の縦絵に収まる。[Safariで見た公開版](docs/screenshots/subaru-safari.jpg)・[公開時の検査とデプロイ](https://github.com/BelltreeTech/one-sky-many-stories/actions/runs/45856134250)

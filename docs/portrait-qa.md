@@ -2,9 +2,17 @@
 
 絵本を開くと、20場面の絵と英文が一本の縦スクロールでつながる。読み手は自分で声に出して読み、好きな箇所で立ち止まって元の絵や台詞へ戻れる。第7・8・11場面は二つの読書位置を持ち、全体で23箇所の英文を検査する。
 
+## 2026年11月27日朝の公開版 657f277
+
+GitHub Pagesから取得した全100ファイルが本番ビルドとバイト単位で一致した。公開URLをiPhone・iPad相当のWebKitとデスクトップChromiumで開いたPlaywright検査は102件すべて初回で合格した。[公開版を読む](https://belltreetech.github.io/one-sky-many-stories/)・[公開時のビルドとデプロイ](https://github.com/BelltreeTech/one-sky-many-stories/actions/runs/45863821015)
+
+iOS 26.5のiPhone 16シミュレーターでSafariを開き、第5場面「Subaru」のリンクから表紙まで戻った。そこで再読み込みすると、画面は表紙に留まり、アドレス欄には場面番号の付かない絵本のURLが表示された。[第5場面を開く](https://belltreetech.github.io/one-sky-many-stories/#scene-05)・[読書位置の修正を含むPR #3](https://github.com/BelltreeTech/one-sky-many-stories/pull/3)
+
+第17場面では、一つのWebKitタブで高解像度の挿絵の取得だけを止めた。日本時間04:01から06:00までの1時間58分29秒、小さい縦絵と原本どおりの英文を表示したまま待った。タブの通信を復帰させると315ミリ秒で360 × 576の絵が992 × 1586の原画に戻った。英文の画面上の位置もスクロール位置も変わらず、そのまま上下に読み返せた。通信条件は検査用タブ内で設定した。旧版での先行試験は04:00に計時値の33ミリ秒の差で終了しており、上の経過時間は新しく開いたタブで測った。[第17場面を開く](https://belltreetech.github.io/one-sky-many-stories/#scene-17)
+
 ## 11月27日の公開版
 
-GitHub Pagesの公開版 `f8c220b` を通常のURLから開いた。HTML、挿絵、フォントを含む100ファイル、17,149,274バイトが本番ビルドと一致した。iPhone 16相当のWebKit、iPad相当のWebKit、デスクトップChromiumで実URLに対する99件の試験を行い、すべて初回で合格した。[公開時のビルドとデプロイ](https://github.com/BelltreeTech/one-sky-many-stories/actions/runs/45856134250)
+同日先に公開した `f8c220b` をGitHub Pagesの通常のURLから開いた。HTML、挿絵、フォントを含む100ファイル、17,149,274バイトが本番ビルドと一致した。iPhone 16相当のWebKit、iPad相当のWebKit、デスクトップChromiumで実URLに対する99件の試験を行い、すべて初回で合格した。[公開時のビルドとデプロイ](https://github.com/BelltreeTech/one-sky-many-stories/actions/runs/45856134250)
 
 iPhone相当の393 × 852からデスクトップの1920 × 1080まで、縦持ち・横持ちを含む9種類の画面サイズで20枚すべてを検査した。第5場面は幅742 × 高さ561のウィンドウでも、約332 × 530 CSSピクセルでルナと祖母を描いた縦絵が現れる。iPhone 16のSafariシミュレーターでも、横に回したあと縦に戻すと同じ絵に戻れた。[公開版のSafari画面](screenshots/subaru-safari.jpg)
 
