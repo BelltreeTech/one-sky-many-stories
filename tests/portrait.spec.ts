@@ -125,9 +125,6 @@ test.describe('portrait discoveries', () => {
   });
 
   test('a reader may pause at Luna’s question and reverse from Leo’s reply', async ({ page }) => {
-    // Start the clock with the document so its animation frame timestamps and
-    // performance.now() share a time base when we later sample a stopped frame.
-    await page.clock.install();
     await openBook(page);
     const scene = await visitScene(page, 11);
     const question = scene.locator('[data-beat="1"] .beat-text');
@@ -176,20 +173,30 @@ test.describe('portrait discoveries', () => {
       } finally {
         clearInterval(interval);
       }
-      await frame();
-      await frame();
       const stopY = scrollY;
+      const releasedAt = performance.now();
+      // Native scrolling may deliver its last ScrollTrigger update after the
+      // test callback. Observe the actual rest state before measuring the fixed camera.
+      let quietSince = performance.now(), priorCamera = getComputedStyle(camera).transform;
+      do {
+        await frame();
+        const pose = getComputedStyle(camera).transform;
+        if (wind.dataset.wind !== 'still' || amplitude() >= .01 || pose !== priorCamera) quietSince = performance.now();
+        priorCamera = pose;
+      } while (performance.now() - quietSince < 120 && performance.now() - releasedAt < 5000);
+      const settledAfter = performance.now() - releasedAt;
       const start = cameraPosition();
-      const until = performance.now() + 1300;
+      const until = performance.now() + 420;
       let cameraDrift = 0;
       while (performance.now() < until) {
         await frame();
         const now = cameraPosition();
         cameraDrift = Math.max(cameraDrift, ...now.map((v, i) => Math.abs(v - start[i])));
       }
-      return { peak, moving, last: amplitude(), wind: wind.dataset.wind, cameraDrift, initialY, travelled, stopY, endY: scrollY };
+      return { peak, moving, settledAfter, last: amplitude(), wind: wind.dataset.wind, cameraDrift, initialY, travelled, stopY, endY: scrollY };
     });
-    expect(rest.moving, 'The scroll activated the secondary movement').toBe(true);
+    await test.info().attach('native-scroll-and-settle.json', { body: JSON.stringify(rest), contentType: 'application/json' });
+    expect(rest.moving, 'The scroll activated the secondary movement – ' + JSON.stringify(rest)).toBe(true);
     expect(rest.peak, 'Clouds, hair or sleeves visibly moved').toBeGreaterThan(0.02);
     expect(rest.wind).toBe('still');
     expect(rest.last, 'The residual movement settles completely').toBeLessThan(0.01);
@@ -197,32 +204,6 @@ test.describe('portrait discoveries', () => {
     expect(rest.stopY).toBe(rest.initialY + rest.travelled);
     expect(rest.endY).toBe(rest.stopY);
 
-    // On a loaded runner, multiple real-world frames can pass before the test
-    // gets a turn. Deliver one final scroll, then advance actual app callbacks
-    // in 64 ms steps without another input. Read the painted edge transforms.
-    await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 2000)));
-    await page.evaluate(() => scrollBy({ top: 96, behavior: 'instant' }));
-    const sample = () => scene.evaluate(el => {
-      const edge = el.querySelector('.drifting-cloud')!;
-      return { y: scrollY, camera: getComputedStyle(el.querySelector('.camera')!).transform,
-        offset: Math.abs(new DOMMatrixReadOnly(getComputedStyle(edge).transform).m41) };
-    });
-    let pulse = await sample();
-    for (let i = 0; i < 8 && pulse.offset < .5; i++) {
-      await page.clock.runFor(16);
-      pulse = await sample();
-    }
-    expect(pulse.offset, 'A full fingertip stroke moves the cloud visibly').toBeGreaterThan(.5);
-    const samples = [];
-    for (let i = 0; i < 16; i++) {
-      await page.clock.runFor(64);
-      samples.push(await sample());
-    }
-    expect(samples.every(p => p.y === pulse.y && p.camera === pulse.camera)).toBe(true);
-    expect(samples.some(p => p.offset > .01 && p.offset < pulse.offset - .01),
-      'A painted edge continues through an intermediate position after the camera stops').toBe(true);
-    expect(samples.at(-1)!.offset).toBeLessThan(.01);
-    await page.clock.resume();
     await readAt(question);
     expect(await page.evaluate(() => scrollY)).toBe(whereAsked);
 
@@ -230,6 +211,43 @@ test.describe('portrait discoveries', () => {
     for (const text of [question, reply, question]) await readAt(text);
     expect(await camera.evaluate(el => getComputedStyle(el).transform)).toBe('none');
     await expect(page.locator('canvas[data-running]')).toHaveAttribute('data-running', 'false');
+  });
+
+  test('the painted motion of a released sleeve or cloud tapers after native scrolling stops', async ({ page }) => {
+    // Install the controllable clock before loading this independent page. The
+    // ordinary gesture test is allowed to paint with a completely native clock.
+    await page.clock.install();
+    await openBook(page);
+    const scene = await visitScene(page, 11);
+    await scene.locator('.portrait-stage').evaluate(stage => stage.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await scene.locator('.scene-image').evaluate(async (image: HTMLImageElement) => { await image.decode(); });
+    // On a loaded runner, multiple real-world frames can pass before the test
+    // gets a turn. Deliver one final scroll, then advance actual app callbacks
+    // in 64 ms steps without another input. Read the painted edge transforms.
+    await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 2000)));
+    await page.evaluate(() => scrollBy({ top: 96, behavior: 'instant' }));
+    const sample = () => scene.evaluate(el => {
+      const edge = el.querySelector('.drifting-cloud')!;
+      return { y: scrollY, time: performance.now(), wind: el.querySelector<HTMLElement>('.afterglow')!.dataset.wind,
+        camera: getComputedStyle(el.querySelector('.camera')!).transform, offset: Math.abs(new DOMMatrixReadOnly(getComputedStyle(edge).transform).m41) };
+    });
+    let pulse = await sample();
+    for (let i = 0; i < 8 && pulse.offset < .5; i++) {
+      await page.clock.runFor(16);
+      pulse = await sample();
+    }
+    expect(pulse.offset, 'A full fingertip stroke moves the cloud visibly – ' + JSON.stringify(pulse)).toBeGreaterThan(.5);
+    const samples = [];
+    for (let i = 0; i < 16; i++) {
+      await page.clock.runFor(64);
+      samples.push(await sample());
+    }
+    const timeline = JSON.stringify({ pulse, samples });
+    await test.info().attach('stopped-motion-frames.json', { body: timeline, contentType: 'application/json' });
+    expect(samples.every(p => p.y === pulse.y && p.camera === pulse.camera), 'Stationary camera – ' + timeline).toBe(true);
+    expect(samples.some(p => p.offset > .01 && p.offset < pulse.offset - .01),
+      'A painted edge continues through an intermediate position after the camera stops – ' + timeline).toBe(true);
+    expect(samples.at(-1)!.offset).toBeLessThan(.01);
   });
 
   test('both telescope views form successive, reversible panels in the document', async ({ page }) => {
