@@ -1,11 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const origin = 'http://127.0.0.1:4182';
-const baseURL = origin + (process.env.VITE_BASE_PATH || '/one-sky-many-stories/');
+const publicURL = process.env.PLAYWRIGHT_PUBLIC_URL;
+const baseURL = publicURL || origin + (process.env.VITE_BASE_PATH || '/one-sky-many-stories/');
 
 export default defineConfig({
   testDir: './tests',
-  outputDir: './artifacts/test-results',
+  outputDir: publicURL ? './artifacts/public-portrait-qa/test-results' : './artifacts/test-results',
   timeout: 90_000,
   expect: { timeout: 8_000 },
   workers: 2,
@@ -31,8 +32,12 @@ export default defineConfig({
       name: 'desktop-chromium',
       use: { browserName: 'chromium', viewport: { width: 1440, height: 900 } },
     },
+    {
+      name: 'ipad-webkit',
+      use: { ...devices['iPad Pro 11'], browserName: 'webkit' },
+    },
   ],
-  webServer: {
+  webServer: publicURL ? undefined : {
     command: 'python3 tests/serve_dist.py',
     url: baseURL,
     reuseExistingServer: false,

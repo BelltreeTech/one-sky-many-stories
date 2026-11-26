@@ -1,107 +1,20 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
-import { mkdir, readFile } from 'node:fs/promises';
+import { expect, type Response } from '@playwright/test';
+import { readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { measureReadingContrast } from './readability';
+import { test, type PDFPage, screenshots, deployPath, secondBeat, oracle, openBook, sceneAt, visitScene, readAt, expectReadable, passageReadable, expectNoOverflow, captureFrame } from './reader-harness';
 
-interface PDFPage {
-  id: number;
-  text: string;
-  width: number;
-  height: number;
-}
-
-const screenshots = path.resolve('artifacts/screenshots');
-const deployPath = process.env.VITE_BASE_PATH || '/one-sky-many-stories/';
-const faults = new WeakMap<Page, string[]>();
-let oracle: { title: string; scenes: PDFPage[] };
-
-test.beforeAll(async () => {
-  oracle = JSON.parse(await readFile('tests/fixtures/pdf-oracle.json', 'utf8'));
-  await mkdir(screenshots, { recursive: true });
-});
-
-test.beforeEach(({ page }) => {
-  const errors: string[] = [];
-  faults.set(page, errors);
-  page.on('pageerror', error => errors.push(error.message));
-  page.on('console', entry => {
-    if (entry.type() === 'error') errors.push(entry.text());
-  });
-  page.on('response', response => {
-    if (response.status() >= 400) errors.push(response.status() + ' ' + response.url());
-  });
-});
-
-test.afterEach(({ page }) => {
-  expect(faults.get(page), 'Browser exceptions, console errors, or broken resources').toEqual([]);
-});
-
-async function openBook(page: Page) {
-  await page.goto('./');
-  await expect(page).toHaveURL(url => url.pathname === deployPath);
-  await expect(page).toHaveTitle(/One Sky, Many Stories/i);
-  await expect(page.locator('vite-error-overlay')).toHaveCount(0);
-  await expect(page.locator('[data-scene]')).toHaveCount(20);
-  await expect(page.locator('meta[name="viewport"]')).toHaveAttribute('content', /viewport-fit=cover/);
-  await expect(page.locator('meta[name="viewport"]')).not.toHaveAttribute('content', /user-scalable=no/);
-  await page.evaluate(async () => { await document.fonts.ready; });
-}
-
-function sceneAt(page: Page, id: number) {
-  return page.locator('[data-scene="' + id + '"]');
-}
-
-async function visitScene(page: Page, id: number) {
-  const scene = sceneAt(page, id);
-  await scene.evaluate(element => {
-    const rect = element.getBoundingClientRect();
-    const delta = rect.top + (rect.height - window.innerHeight) / 2;
-    window.scrollBy({ top: delta, behavior: 'instant' });
-  });
-  await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', String(id));
-  return scene;
-}
-
-// Measure the rendered text fragments themselves, including opacity inherited
-// from any animated wrappers. A present but transparent DOM node is unreadable.
-async function passageReadable(passage: Locator) {
-  return passage.evaluate(element => {
-    const nodes = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-    let node = nodes.nextNode();
-    let words = 0;
-    while (node) {
-      if (node.textContent?.trim()) {
-        words++;
-        let opacity = 1;
-        for (let ancestor = node.parentElement; ancestor; ancestor = ancestor.parentElement) {
-          const style = getComputedStyle(ancestor);
-          opacity *= Number(style.opacity);
-          if (style.visibility !== 'visible' || style.display === 'none') return false;
-        }
-        if (opacity < 0.85) return false;
-        const range = document.createRange();
-        range.selectNodeContents(node);
-        const boxes = [...range.getClientRects()].filter(rect => rect.width && rect.height);
-        if (!boxes.length || boxes.some(rect => rect.left < -1 || rect.right > innerWidth + 1
-          || rect.top < -1 || rect.bottom > innerHeight + 1)) return false;
-      }
-      node = nodes.nextNode();
-    }
-    return words > 0;
-  });
-}
-
-async function expectReadable(scene: Locator) {
-  await expect.poll(() => passageReadable(scene.locator('.passage'))).toBe(true);
-}
-
-async function expectNoOverflow(page: Page) {
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+function sha256(bytes: Buffer) {
+  return createHash('sha256').update(bytes).digest('hex');
 }
 
 test('twenty illustrations and passages match the PDF in the production reader', async ({ page }, info) => {
-  const isPhone = info.project.name === 'iphone-webkit';
-  const resources = new Map<string, string>();
-  page.on('response', response => resources.set(response.url(), response.headers()['content-type'] ?? ''));
+  const isPortrait = info.project.name !== 'desktop-chromium';
+  const deviceName = info.project.name === 'ipad-webkit' ? 'ipad' : 'iphone';
+  const resources = new Map<string, Response>();
+  const measurements: Array<{ scene: number; beat: number } & Awaited<ReturnType<typeof measureReadingContrast>>> = [];
+  page.on('response', response => { if (/^https?:/.test(response.url())) resources.set(response.url(), response); });
   await openBook(page);
   const story = JSON.parse(await readFile('src/data/story.json', 'utf8'));
   expect(story.title).toBe(oracle.title);
@@ -111,28 +24,76 @@ test('twenty illustrations and passages match the PDF in the production reader',
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(oracle.title, { ignoreCase: true });
 
   // Late scenes should not already have fetched every original at initial load.
-  expect([...resources.keys()].filter(url => /\/art\/\d+\.webp$/.test(url)).length).toBeLessThan(20);
+  const illustrationPath = isPortrait ? '/portrait/' : '/art/';
+  expect([...resources.keys()].filter(url => url.includes(illustrationPath)).length).toBeLessThan(20);
   for (const source of oracle.scenes) {
     await test.step('Read PDF page ' + source.id, async () => {
       const scene = await visitScene(page, source.id);
-      await expect(scene.locator('.passage')).toHaveText(source.text);
-      await expectReadable(scene);
+      const passage = scene.locator('.passage');
+      expect(await passage.textContent(), 'The original text appears once, verbatim and in order').toBe(source.text);
+      const beatStart = secondBeat.get(source.id);
+      if (isPortrait && beatStart) {
+        const boundary = source.text.indexOf(beatStart);
+        expect(boundary).toBeGreaterThan(0);
+        const beats = passage.locator('[data-beat] .beat-text');
+        await expect(beats).toHaveCount(2);
+        await expect(beats.nth(0)).toHaveText(source.text.slice(0, boundary).trimEnd());
+        await expect(beats.nth(1)).toHaveText(source.text.slice(boundary));
+        await readAt(beats.nth(0));
+      } else {
+        await readAt(passage);
+      }
       const mainImage = scene.locator('img.scene-image');
       await expect(mainImage).toHaveAttribute('src', /\.webp$/);
       const asset = await mainImage.evaluate(async (element: HTMLImageElement) => {
         await element.decode();
         return { width: element.naturalWidth, height: element.naturalHeight, url: element.currentSrc, alt: element.alt };
       });
-      expect([asset.width, asset.height]).toEqual([source.width, source.height]);
+      if (isPortrait) {
+        expect(asset.height, 'A portrait composition is displayed on the phone').toBeGreaterThan(asset.width);
+        expect(asset.width).toBeGreaterThanOrEqual(393);
+      } else {
+        expect([asset.width, asset.height]).toEqual([source.width, source.height]);
+      }
       expect(asset.alt.trim()).not.toBe('');
-      expect(new URL(asset.url).pathname).toBe(deployPath + story.scenes[source.id - 1].image);
-      expect(resources.get(asset.url)).toMatch(/^image\/webp\b/);
+      const publicFile = isPortrait ? 'portrait/' + String(source.id).padStart(2, '0') + '.webp' : story.scenes[source.id - 1].image;
+      expect(new URL(asset.url).pathname).toBe(deployPath + publicFile);
+      const served = resources.get(asset.url)!;
+      expect(served.headers()['content-type']).toMatch(/^image\/webp\b/);
+      expect(sha256(await served.body())).toBe(sha256(await readFile(path.join('public', publicFile))));
       await expectNoOverflow(page);
-      if (isPhone || source.id === 1) {
-        const name = isPhone ? 'iphone-' + String(source.id).padStart(2, '0') : 'desktop-opening';
+      if (isPortrait || source.id === 1) {
+        const name = isPortrait ? deviceName + '-' + String(source.id).padStart(2, '0') : 'desktop-opening';
         await page.screenshot({ path: path.join(screenshots, name + '.png'), scale: 'css' });
       }
+      if (isPortrait) {
+        const result = await measureReadingContrast(page, beatStart ? passage.locator('[data-beat="1"] .beat-text') : passage);
+        measurements.push({ scene: source.id, beat: 1, ...result });
+        expect(result.minimum, 'Visible text against the actual background on scene ' + source.id).toBeGreaterThanOrEqual(4.5);
+      }
+      if (isPortrait && beatStart) {
+        const answer = passage.locator('[data-beat="2"] .beat-text');
+        await readAt(answer);
+        if (source.id === 8) {
+          const lens = scene.locator('.telescope-view');
+          await expect(lens).toHaveAttribute('data-ready', 'true');
+          await expect.poll(() => lens.evaluate(el => Number(getComputedStyle(el).opacity))).toBeGreaterThan(0.99);
+        }
+        await captureFrame(page, deviceName + '-' + String(source.id).padStart(2, '0') + '-answer');
+        const result = await measureReadingContrast(page, answer);
+        measurements.push({ scene: source.id, beat: 2, ...result });
+        expect(result.minimum, 'Answer text against the actual background on scene ' + source.id).toBeGreaterThanOrEqual(4.5);
+      }
     });
+  }
+  if (isPortrait) {
+    await writeFile(path.join(screenshots, deviceName + '-reading-contrast.json'), JSON.stringify(measurements, null, 2) + '\n');
+    for (const file of ['portrait/telescope.webp', 'portrait/ridge.webp']) {
+      const served = resources.get(new URL(file, page.url()).href);
+      expect(served, file + ' was fetched on the reading route').toBeDefined();
+      expect(served!.headers()['content-type']).toMatch(/^image\/webp\b/);
+      expect(sha256(await served!.body())).toBe(sha256(await readFile(path.join('public', file))));
+    }
   }
 
   const fonts = await page.evaluate(() => [...document.fonts]
@@ -146,8 +107,8 @@ test('twenty illustrations and passages match the PDF in the production reader',
     const parsed = new URL(url);
     return parsed.origin !== base.origin || !parsed.pathname.startsWith(base.pathname);
   }), 'Every production resource resolves under the deployment path').toEqual([]);
-  for (const [url, contentType] of fetched) {
-    if (new URL(url).pathname.endsWith('.woff2')) expect(contentType).toMatch(/font|woff|octet-stream/i);
+  for (const [url, response] of fetched) {
+    if (new URL(url).pathname.endsWith('.woff2')) expect(response.headers()['content-type']).toMatch(/font|woff|octet-stream/i);
   }
 });
 
@@ -195,6 +156,22 @@ test('native scroll moves the active camera and releases distant artwork', async
   await expect(scene.locator('img.scene-image')).not.toHaveAttribute('src', /.+/);
   await expectReadable(await visitScene(page, 6));
   await expect(scene.locator('img.scene-image')).toHaveAttribute('src', /\.webp$/);
+});
+
+test('rotating between portrait art and the landscape PDF retains the reading scene', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  await openBook(page);
+  const scene = await visitScene(page, 17);
+  await readAt(scene.locator('[data-beat="1"] .beat-text'));
+  for (const [width, height, folder] of [[852, 393, 'art'], [393, 852, 'portrait']] as const) {
+    await page.setViewportSize({ width, height });
+    await expect.poll(() => scene.locator('.scene-image').evaluate((image: HTMLImageElement) =>
+      image.naturalWidth > 0 && new URL(image.currentSrc).pathname)).toBe(deployPath + folder + '/17.webp');
+    await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '17');
+    expect(await scene.locator('.passage').textContent()).toBe(oracle.scenes[16].text);
+    await expectNoOverflow(page);
+  }
+  await expect.poll(() => passageReadable(scene.locator('[data-beat="1"] .beat-text'))).toBe(true);
 });
 
 test('live motion preference stops particles and permits rereading in both directions', async ({ page }) => {
