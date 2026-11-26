@@ -1,0 +1,185 @@
+{
+  "title": "One Sky, Many Stories",
+  "scenes": [
+    {
+      "id": 1,
+      "text": "Luna climbed a little hill with a lantern in her hand. Two travelers were sitting among the flowers. “Hello! Are you watching the stars, too?” she asked.",
+      "width": 1672,
+      "height": 940,
+      "image": "art/01.webp",
+      "alt": "Luna carries her lantern up a flower-covered hill toward Leo and Noah, who are sitting under the stars.",
+      "chapter": 1
+    },
+    {
+      "id": 2,
+      "text": "“Yes! Come and sit with us,” said Leo. Noah moved a little to make room. The three friends looked up at the sky. A small group of stars caught Luna’s eye.",
+      "width": 1672,
+      "height": 940,
+      "image": "art/02.webp",
+      "alt": "Leo offers Luna a seat in the grass. Beside him, Noah shifts over as Luna looks up.",
+      "chapter": 1
+    },
+    {
+      "id": 3,
+      "text": "“What are those stars called?” Luna asked. “They’re called the Seven Sisters,” Leo replied. Noah smiled. “That’s interesting. In New Zealand, I learned a different name for them.”",
+      "width": 1671,
+      "height": 940,
+      "image": "art/03.webp",
+      "alt": "Seen from behind, Luna points at a small blue-white star cluster while Leo opens his hand toward it.",
+      "chapter": 1
+    },
+    {
+      "id": 4,
+      "text": "“Where did you learn that name?” asked Luna. “In Greece,” said Leo. “But what about you?” Luna remembered the nights she spent with her grandmother in Japan.",
+      "width": 1672,
+      "height": 940,
+      "image": "art/04.webp",
+      "alt": "Leo holds his blue book and speaks to Luna. An image of her grandmother on a lamplit porch appears in the sky.",
+      "chapter": 1
+    },
+    {
+      "id": 5,
+      "text": "“In Japan, this group of stars is called Subaru,” Luna explained. “The name is said to come from an old word about things coming together, just like these little stars.”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/05.webp",
+      "alt": "On a wooden veranda, a young Luna points above the snowy valley while her grandmother sits beside her.",
+      "chapter": 2
+    },
+    {
+      "id": 6,
+      "text": "“When did people start using that name?” asked Noah. “A very long time ago! Subaru is mentioned in a Japanese book called The Pillow Book. It was written by Sei Shōnagon.”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/06.webp",
+      "alt": "A court writer in layered robes holds a brush over paper by lamplight, with a winter sky beyond the open window.",
+      "chapter": 2
+    },
+    {
+      "id": 7,
+      "text": "Luna remembered sitting beside her grandmother on a cold night. “How many stars can you see?” her grandmother asked. Luna counted them slowly. “One, two, three… I can see six!”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/07.webp",
+      "alt": "Luna counts on her fingers as her grandmother smiles, with a small group of bright stars above the porch.",
+      "chapter": 2
+    },
+    {
+      "id": 8,
+      "text": "“There are many more stars in that group,” Luna told her friends. “Some are hard to see with our eyes, but more can be seen through a telescope.”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/08.webp",
+      "alt": "Leo looks through a brass telescope as Noah steadies it. A round inset shows many more stars.",
+      "chapter": 2
+    },
+    {
+      "id": 9,
+      "text": "Leo opened his book. “In an old Greek myth, the stars are known as the Seven Sisters. They were the daughters of Atlas and Pleione. Would you like to hear their story?”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/09.webp",
+      "alt": "Leo opens his blue book by lantern light. Seven figures in flowing robes appear in a vision above the three friends.",
+      "chapter": 3
+    },
+    {
+      "id": 10,
+      "text": "“Long ago, seven sisters lived together,” Leo began. “One day, they were chased by a hunter named Orion. They ran as fast as they could, but they couldn’t get away.”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/10.webp",
+      "alt": "Seven sisters run past an olive tree over a rocky hillside, their long dresses trailing in the evening light.",
+      "chapter": 3
+    },
+    {
+      "id": 11,
+      "text": "“Oh no! How did they become stars?” Luna asked. “In one version of the story, they were placed in the sky by Zeus, who wanted to keep them safe,” said Leo.",
+      "width": 1672,
+      "height": 940,
+      "image": "art/11.webp",
+      "alt": "Seven women drift upward in pale streams of starlight, with the mountains far below.",
+      "chapter": 3
+    },
+    {
+      "id": 12,
+      "text": "“And now, the sisters shine together,” Leo said, closing his book. Luna looked at the little stars again. “I like that story. I’m glad the sisters are safe.”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/12.webp",
+      "alt": "Leo rests his hand on his closed book as Luna looks up toward the star cluster and Noah listens.",
+      "chapter": 3
+    },
+    {
+      "id": 13,
+      "text": "“Where I grew up, many people call this group Matariki,” said Noah. “For many Māori communities, these stars mark the beginning of the Māori New Year.”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/13.webp",
+      "alt": "Noah speaks with his star journal in one hand. A dawn-lit lake and mountains appear beyond him.",
+      "chapter": 4
+    },
+    {
+      "id": 14,
+      "text": "“When is Matariki celebrated?” asked Luna. “In the middle of winter,” Noah replied. “The stars appear again in the sky just before sunrise. Some communities mark the new year with other stars.”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/14.webp",
+      "alt": "Noah kneels beside a winter lake, pointing toward the small star cluster over the brightening horizon.",
+      "chapter": 4
+    },
+    {
+      "id": 15,
+      "text": "“Is there a story about these stars, too?” asked Leo. “Yes. In one Māori story, Matariki is a mother surrounded by six daughters. Each daughter has a special gift.”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/15.webp",
+      "alt": "A luminous mother stretches out her arms above the mountains, with three daughters on each side.",
+      "chapter": 4
+    },
+    {
+      "id": 16,
+      "text": "“How do they use their gifts?” Luna asked. “They visit their great-grandmother, Papatūānuku, the Earth,” said Noah. “They help care for the plants and the natural world as a new year approaches.”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/16.webp",
+      "alt": "Six luminous daughters reach toward fern shoots, a tree and a river as their mother watches over the valley.",
+      "chapter": 4
+    },
+    {
+      "id": 17,
+      "text": "“How is the new year celebrated?” asked Leo. “Families and friends come together,” Noah explained. “People who have died are remembered. Food is shared, and people talk about their hopes for the future.”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/17.webp",
+      "alt": "Family members pass a bowl of food around a table. A photograph sits on the mantel, and snow lies outside.",
+      "chapter": 5
+    },
+    {
+      "id": 18,
+      "text": "Luna opened her notebook. “Subaru, the Seven Sisters, and Matariki,” she said. “Three different names for the same group of stars.” Leo smiled. “And so many stories to discover!”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/18.webp",
+      "alt": "Luna holds a pencil over her open notebook. Leo and Noah lean in to see three small drawings of the stars.",
+      "chapter": 5
+    },
+    {
+      "id": 19,
+      "text": "“Where will you go next?” Noah asked. “I’ll travel to another town,” said Luna. “I want to hear more stories.” Leo nodded. “And I’ll tell people about the stories we heard tonight.”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/19.webp",
+      "alt": "Luna points down the winding path toward the lights of a town. Leo and Noah stand beside her with their books.",
+      "chapter": 5
+    },
+    {
+      "id": 20,
+      "text": "Before they left, the three friends looked up one last time. “We come from different places,” said Luna, “and we tell different stories. But we all look up at the same sky.”",
+      "width": 1672,
+      "height": 940,
+      "image": "art/20.webp",
+      "alt": "Seen from behind, Luna, Leo and Noah sit shoulder to shoulder beside one lantern beneath a vast starry sky.",
+      "chapter": 5
+    }
+  ]
+}
