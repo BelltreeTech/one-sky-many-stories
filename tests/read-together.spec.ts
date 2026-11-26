@@ -68,7 +68,13 @@ test('the human reader can linger at the questions in scenes seven and eleven', 
     await page.clock.fastForward(90_000);
     expect(await page.evaluate(() => scrollY)).toBe(start);
     expect(await passageReadable(first)).toBe(true);
-    expect(await passageReadable(answer)).toBe(false);
+    // Even the first line of the answer belongs to the reader's next swipe.
+    const answerTop = await answer.evaluate(el => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return Math.min(...Array.from(range.getClientRects(), rect => rect.top)) - innerHeight;
+    });
+    expect(answerTop, 'No part of the answer is on screen at the question').toBeGreaterThanOrEqual(0);
     await readAt(answer);
     expect(await page.evaluate(() => scrollY)).toBeGreaterThan(start);
     await readAt(first);
