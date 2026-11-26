@@ -123,11 +123,8 @@
    faces and bodies stay anchored to the reader's native scroll position. */
 .afterglow, .afterglow i { position: absolute; inset: 0; pointer-events: none; }
 .afterglow { --gust: 0; }
-.afterglow[data-wind="up"] { --gust: 1; }
-.afterglow[data-wind="down"] { --gust: -1; }
 .afterglow i {
   background: var(--plate) center / 100% 100% no-repeat;
-  transition: transform 780ms cubic-bezier(.18,.75,.24,1);
 }
 .afterglow .drifting-cloud {
   mask-image: radial-gradient(ellipse 17% 4% at 77% 11%, black 32%, transparent 99%);

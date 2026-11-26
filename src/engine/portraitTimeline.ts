@@ -16,7 +16,24 @@ export function attachPortraitTimeline(scene: HTMLElement, id: number, motion: b
   const lens = scene.querySelector<HTMLElement>('.lens-field')
   const wind = scene.querySelector<HTMLElement>('.afterglow')
   let priorY = window.scrollY
-  let settle: ReturnType<typeof setTimeout> | undefined
+  let gustFrame = 0
+  let lastGust = 0
+  let strength = 0
+  const glide = 760
+
+  function paintWind(time: number) {
+    if (!wind) return
+    const elapsed = Math.max(0, time - lastGust)
+    const remaining = Math.max(0, 1 - elapsed / glide)
+    // Paint the actual tip displacement directly. A transition that starts and
+    // ends between two Safari paints can leave the hair motionless throughout.
+    wind.style.setProperty('--gust', String(strength * remaining ** 2))
+    if (remaining > 0) gustFrame = requestAnimationFrame(paintWind)
+    else {
+      gustFrame = 0
+      wind.dataset.wind = 'still'
+    }
+  }
   function update() {
     const frame = window.innerHeight
     const bounds = stage.getBoundingClientRect()
@@ -35,9 +52,15 @@ export function attachPortraitTimeline(scene: HTMLElement, id: number, motion: b
       camera.style.opacity = String(.78 + .22 * between(frame - bounds.top, 0, frame * .60))
     }
     if (wind && bounds.bottom > 0 && bounds.top < frame && Math.abs(window.scrollY - priorY) > .1) {
-      clearTimeout(settle)
-      wind.dataset.wind = window.scrollY > priorY ? 'up' : 'down'
-      settle = setTimeout(() => { wind.dataset.wind = 'still' }, 60)
+      const delta = window.scrollY - priorY
+      const elapsed = performance.now() - lastGust
+      const residual = strength * Math.max(0, 1 - elapsed / glide) ** 2
+      const push = Math.sign(delta) * Math.max(.22, Math.abs(delta) / 60)
+      strength = Math.max(-1, Math.min(1, residual + push))
+      lastGust = performance.now()
+      wind.dataset.wind = delta > 0 ? 'up' : 'down'
+      wind.style.setProperty('--gust', String(strength))
+      if (!gustFrame) gustFrame = requestAnimationFrame(paintWind)
     }
     priorY = window.scrollY
   }
@@ -47,8 +70,11 @@ export function attachPortraitTimeline(scene: HTMLElement, id: number, motion: b
   update()
   return () => {
     trigger.kill()
-    clearTimeout(settle)
-    if (wind) wind.dataset.wind = 'still'
+    cancelAnimationFrame(gustFrame)
+    if (wind) {
+      wind.dataset.wind = 'still'
+      wind.style.removeProperty('--gust')
+    }
     lens?.style.removeProperty('--aperture')
     camera.style.removeProperty('opacity')
     camera.style.removeProperty('transform')
