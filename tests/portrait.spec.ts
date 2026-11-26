@@ -1,8 +1,47 @@
-import { expect, type Locator } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { test, openBook, oracle, deployPath, sceneAt, visitScene, readAt, passageReadable, expectReadable, expectImageFailures, captureFrame } from './reader-harness';
 
 // The optical panel conveys the encounter with fainter stars, even before its pixels arrive.
 const opticalDescription = /through the eyepiece.*bright stars.*fainter points of light/i;
+
+async function checkMemoryMask(page: Page, original: Locator) {
+  const rect = await original.boundingBox();
+  if (!rect) throw new Error('The memory painting must be visible');
+  // Compare two exposures at exactly the same camera position. Hide only the
+  // changing stars, which otherwise introduce pixel differences unrelated to the memory.
+  const still = (opacity: number) => page.screenshot({ scale: 'css',
+    style: '.starlight{visibility:hidden!important}.memory-sky{opacity:' + opacity + '!important}' });
+  const before = await still(1), after = await still(0);
+  const result = await page.evaluate(async ({ a, b, rect }) => {
+    const pixels = async (png: string) => {
+      const image = new Image();
+      image.src = 'data:image/png;base64,' + png;
+      await image.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(image, 0, 0);
+      return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    };
+    const [start, end] = await Promise.all([pixels(a), pixels(b)]);
+    let sky = 0, changedSky = 0, foreground = 0, changedForeground = 0;
+    for (let y = Math.max(0, Math.ceil(rect.y)); y < Math.min(start.height, rect.y + rect.height); y += 2) {
+      for (let x = Math.max(0, Math.ceil(rect.x)); x < Math.min(start.width, rect.x + rect.width); x += 2) {
+        const u = (x - rect.x) / rect.width, v = (y - rect.y) / rect.height;
+        const i = 4 * (y * start.width + x);
+        const different = [0, 1, 2].some(channel => Math.abs(start.data[i + channel] - end.data[i + channel]) > 6);
+        if (u > .55 && v < .35) { sky++; if (different) changedSky++; }
+        if (v >= .40 || u <= .45) { foreground++; if (different) changedForeground++; }
+      }
+    }
+    return { sky, changedSky, foreground, changedForeground };
+  }, { a: before.toString('base64'), b: after.toString('base64'), rect });
+  expect(result.sky).toBeGreaterThan(100);
+  expect(result.foreground).toBeGreaterThan(100);
+  expect(result.changedSky / result.sky, 'The memory appears in the upper-right sky').toBeGreaterThan(.01);
+  expect(result.changedForeground / result.foreground, 'The three friends and the left sky stay unchanged').toBeLessThan(.001);
+}
 
 test.describe('portrait discoveries', () => {
   test.beforeEach(async ({ page }, info) => {
@@ -86,6 +125,9 @@ test.describe('portrait discoveries', () => {
   });
 
   test('a reader may pause at Luna’s question and reverse from Leo’s reply', async ({ page }) => {
+    // Start the clock with the document so its animation frame timestamps and
+    // performance.now() share a time base when we later sample a stopped frame.
+    await page.clock.install();
     await openBook(page);
     const scene = await visitScene(page, 11);
     const question = scene.locator('[data-beat="1"] .beat-text');
@@ -140,25 +182,47 @@ test.describe('portrait discoveries', () => {
       const start = cameraPosition();
       const until = performance.now() + 1300;
       let cameraDrift = 0;
-      const tail = [amplitude()];
       while (performance.now() < until) {
         await frame();
-        tail.push(amplitude());
         const now = cameraPosition();
         cameraDrift = Math.max(cameraDrift, ...now.map((v, i) => Math.abs(v - start[i])));
       }
-      return { peak, moving, tail, last: amplitude(), wind: wind.dataset.wind, cameraDrift, initialY, travelled, stopY, endY: scrollY };
+      return { peak, moving, last: amplitude(), wind: wind.dataset.wind, cameraDrift, initialY, travelled, stopY, endY: scrollY };
     });
     expect(rest.moving, 'The scroll activated the secondary movement').toBe(true);
     expect(rest.peak, 'Clouds, hair or sleeves visibly moved').toBeGreaterThan(0.02);
-    const tailPeak = Math.max(...rest.tail);
-    expect(rest.tail.some(value => value > .01 && value < tailPeak - .01),
-      'A painted edge is still moving through intermediate positions after the camera stops').toBe(true);
     expect(rest.wind).toBe('still');
     expect(rest.last, 'The residual movement settles completely').toBeLessThan(0.01);
     expect(rest.cameraDrift, 'Camera drift once scrolling ended (CSS pixels)').toBeLessThan(0.1);
     expect(rest.stopY).toBe(rest.initialY + rest.travelled);
     expect(rest.endY).toBe(rest.stopY);
+
+    // On a loaded runner, multiple real-world frames can pass before the test
+    // gets a turn. Deliver one final scroll, then advance actual app callbacks
+    // in 64 ms steps without another input. Read the painted edge transforms.
+    await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 2000)));
+    await page.evaluate(() => scrollBy({ top: 96, behavior: 'instant' }));
+    const sample = () => scene.evaluate(el => {
+      const edge = el.querySelector('.drifting-cloud')!;
+      return { y: scrollY, camera: getComputedStyle(el.querySelector('.camera')!).transform,
+        offset: Math.abs(new DOMMatrixReadOnly(getComputedStyle(edge).transform).m41) };
+    });
+    let pulse = await sample();
+    for (let i = 0; i < 8 && pulse.offset < .5; i++) {
+      await page.clock.runFor(16);
+      pulse = await sample();
+    }
+    expect(pulse.offset, 'A full fingertip stroke moves the cloud visibly').toBeGreaterThan(.5);
+    const samples = [];
+    for (let i = 0; i < 16; i++) {
+      await page.clock.runFor(64);
+      samples.push(await sample());
+    }
+    expect(samples.every(p => p.y === pulse.y && p.camera === pulse.camera)).toBe(true);
+    expect(samples.some(p => p.offset > .01 && p.offset < pulse.offset - .01),
+      'A painted edge continues through an intermediate position after the camera stops').toBe(true);
+    expect(samples.at(-1)!.offset).toBeLessThan(.01);
+    await page.clock.resume();
     await readAt(question);
     expect(await page.evaluate(() => scrollY)).toBe(whereAsked);
 
@@ -198,14 +262,8 @@ test.describe('portrait discoveries', () => {
     }
   });
 
-  test('two neighboring scenes share the screen and the mythical hillside has its own artwork', async ({ page }, info) => {
+  test('all nineteen neighboring scenes share the screen at their boundaries', async ({ page }, info) => {
     await openBook(page);
-    const next = await visitScene(page, 10);
-    const previous = sceneAt(page, 9);
-    await next.evaluate(section => {
-      window.scrollBy({ top: section.getBoundingClientRect().top - innerHeight * .52, behavior: 'instant' });
-      return new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-    });
     const visibleContent = (scene: Locator) => scene.evaluate(section => {
       const inFrame = (r: DOMRect) => r.top < innerHeight - 8 && r.bottom > 8 && r.width > 10 && r.height > 0;
       const text = [...section.querySelectorAll('.beat-text, h2')].filter(e => {
@@ -222,25 +280,73 @@ test.describe('portrait discoveries', () => {
       });
       return text.length + image.length;
     });
-    await expect.poll(() => visibleContent(previous)).toBeGreaterThan(0);
-    await expect.poll(() => visibleContent(next)).toBeGreaterThan(0);
-    const ridge = next.locator('.ridge-alignment .ridge-bridge');
-    await expect(ridge).toHaveAttribute('data-ready', 'true');
-    const order = await page.evaluate(() => {
-      const main = (id: number) => document.querySelector('[data-scene="'+id+'"] .scene-image')!.getBoundingClientRect();
-      const ridge = document.querySelector('[data-scene="10"] .ridge-bridge')!.getBoundingClientRect();
-      return [main(9).bottom <= ridge.top + 1, ridge.bottom <= main(10).top + 1];
-    });
-    expect(order[0], 'The outdoor panel follows the story told over the open book').toBe(true);
-    // A feathered seam may overlap a few background pixels. The two groups
-    // of sisters must still occupy distinct illustrations in the strip.
-    const overlap = await next.evaluate(el => {
-      const ridge = el.querySelector('.ridge-bridge')!.getBoundingClientRect();
-      const art = el.querySelector('.scene-image')!.getBoundingClientRect();
-      return Math.max(0, ridge.bottom - art.top) / art.height;
-    });
-    expect(overlap).toBeLessThan(0.10);
-    if (info.project.name === 'iphone-webkit') await captureFrame(page, 'iphone-09-to-10');
+    for (let id = 2; id <= 20; id++) {
+      await test.step('Join scenes ' + (id - 1) + ' and ' + id, async () => {
+        const next = await visitScene(page, id);
+        const previous = sceneAt(page, id - 1);
+        await next.evaluate(section => {
+          window.scrollBy({ top: section.getBoundingClientRect().top - innerHeight * .52, behavior: 'instant' });
+          return new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        });
+        await expect.poll(() => visibleContent(previous)).toBeGreaterThan(0);
+        await expect.poll(() => visibleContent(next)).toBeGreaterThan(0);
+        const seam = await next.evaluate(section => {
+          const prior = section.previousElementSibling!.getBoundingClientRect();
+          return Math.abs(prior.bottom - section.getBoundingClientRect().top);
+        });
+        expect(seam).toBeLessThan(1);
+        if (info.project.name === 'iphone-webkit') {
+          const label = (n: number) => String(n).padStart(2, '0');
+          await captureFrame(page, 'iphone-' + label(id - 1) + '-to-' + label(id));
+        }
+      });
+    }
+  });
+
+  test('the memory and the mythical ridge dissolve on the same painting as the reader scrolls', async ({ page }, info) => {
+    await openBook(page);
+    for (const [id, selector] of [[4, '.memory-sky'], [10, '.ridge-bridge']] as const) {
+      const scene = await visitScene(page, id);
+      const exposure = scene.locator('.portrait-sheet ' + selector);
+      const original = scene.locator('.portrait-sheet .scene-image');
+      await expect(exposure).toHaveAttribute('data-ready', 'true');
+      await original.evaluate(async (img: HTMLImageElement) => { await img.decode(); });
+      const pose = () => exposure.evaluate(img => {
+        const base = img.parentElement!.querySelector('.scene-image')!.getBoundingClientRect();
+        const painted = img.getBoundingClientRect();
+        return { opacity: Number(getComputedStyle(img).opacity), y: scrollY,
+          registration: Math.max(...(['top', 'bottom', 'left', 'right'] as const).map(side => Math.abs(base[side] - painted[side]))) };
+      });
+      // Set the top of the drawing at a known distance from the window top.
+      // The effect must be recoverable from position in either direction.
+      const seek = async (top: number) => {
+        await scene.locator('.portrait-stage').evaluate(async (stage, top) => {
+          scrollBy({ top: stage.getBoundingClientRect().top - innerHeight * top, behavior: 'instant' });
+          await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        }, top);
+        return pose();
+      };
+      const entry = await seek(.8), middle = await seek(.27);
+      expect(entry.opacity).toBeGreaterThan(.95);
+      expect(middle.opacity).toBeGreaterThan(.05);
+      expect(middle.opacity).toBeLessThan(.95);
+      expect(middle.y).toBeGreaterThan(entry.y);
+      await page.waitForTimeout(180);
+      expect(await pose()).toEqual(middle);
+      if (info.project.name === 'iphone-webkit') await captureFrame(page, 'iphone-' + String(id).padStart(2, '0') + '-dissolve');
+      if (id === 4) await checkMemoryMask(page, original);
+      const finished = await seek(-.05);
+      expect(finished.opacity).toBeLessThan(.05);
+      expect(await seek(.27)).toEqual(middle);
+      const back = await seek(.8);
+      expect(back).toEqual(entry);
+      for (const point of [entry, middle, finished, back]) expect(point.registration).toBeLessThan(1);
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      for (const top of [.8, .27, -.05]) expect((await seek(top)).opacity).toBe(0);
+      expect(await original.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+      expect(await scene.locator('.passage').textContent()).toBe(oracle.scenes[id - 1].text);
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+    }
   });
 
   test('art recovers in place after both portrait and landscape return a temporary 503', async ({ page, baseURL }) => {
@@ -274,13 +380,18 @@ test.describe('portrait discoveries', () => {
 
   test('unreadable portrait and auxiliary images preserve the illustration and original English', async ({ page }) => {
     const failures = new Set<string>();
-    await page.route(/\/portrait\/(?:11|telescope|ridge)\.webp(?:\?.*)?$/, route => {
+    await page.route(/\/portrait\/(?:11|telescope|ridge|before-memory)\.webp(?:\?.*)?$/, route => {
       failures.add(new URL(route.request().url()).pathname.split('/').pop()!);
       // A 200 response with invalid bytes exercises image decode failures, even
       // when the resource is cached successfully by a CDN or service worker.
       return route.fulfill({ status: 200, contentType: 'image/webp', body: 'invalid WebP bytes' });
     });
     await openBook(page);
+    const memory = await visitScene(page, 4);
+    await expect.poll(() => failures.has('before-memory.webp')).toBe(true);
+    await expect(memory.locator('.memory-sky')).toHaveCSS('opacity', '0');
+    expect(await memory.locator('.passage').textContent()).toBe(oracle.scenes[3].text);
+    await memory.locator('.scene-image').evaluate(async (img: HTMLImageElement) => { await img.decode(); });
     const scene = await visitScene(page, 8);
     for (const beat of [1, 2, 1]) await readAt(scene.locator('[data-beat="' + beat + '"] .beat-text'));
     await expect.poll(() => failures.has('telescope.webp')).toBe(true);
@@ -299,7 +410,7 @@ test.describe('portrait discoveries', () => {
     expect(await book.locator('.passage').textContent()).toBe(oracle.scenes[9].text);
     const sisters = await visitScene(page, 11);
     for (const beat of [1, 2]) await readAt(sisters.locator('[data-beat="' + beat + '"] .beat-text'));
-    await expect.poll(() => [...failures].sort()).toEqual(['11.webp', 'ridge.webp', 'telescope.webp']);
+    await expect.poll(() => [...failures].sort()).toEqual(['11.webp', 'before-memory.webp', 'ridge.webp', 'telescope.webp']);
     await expect.poll(() => sisters.locator('.scene-image').evaluate((el: HTMLImageElement) => ({
       url: el.currentSrc && new URL(el.currentSrc).pathname,
       width: el.naturalWidth,

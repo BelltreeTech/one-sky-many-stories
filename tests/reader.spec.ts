@@ -130,7 +130,7 @@ test('twenty illustrations and passages match the PDF in the production reader',
   }
   if (isPortrait) {
     await writeFile(path.join(screenshots, deviceName + '-reading-contrast.json'), JSON.stringify(measurements, null, 2) + '\n');
-    for (const file of ['portrait/telescope.webp', 'portrait/ridge.webp']) {
+    for (const file of ['portrait/telescope.webp', 'portrait/ridge.webp', 'portrait/before-memory.webp']) {
       const served = resources.get(new URL(file, page.url()).href);
       expect(served, file + ' was fetched on the reading route').toBeDefined();
       expect(served!.headers()['content-type']).toMatch(/^image\/webp\b/);
@@ -182,6 +182,36 @@ test('fast forward, reverse and changing screen height leave the story readable'
   });
   expect(geometry.font).toBeGreaterThan(originalSize);
   expect(geometry.contained).toBe(true);
+  await expectNoOverflow(page);
+
+  // A responsive rem/vw formula need not double every computed size when the
+  // root changes. Also exercise the long passage at a measured 200% body size.
+  const passage = longScene.locator('.passage');
+  const edges = await passage.evaluate((el: HTMLElement, original) => {
+    el.style.fontSize = 2 * original + 'px';
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const lines: DOMRect[] = [];
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!node.textContent?.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      lines.push(...[...range.getClientRects()].filter(line => line.width && line.height));
+    }
+    return { font: parseFloat(getComputedStyle(el).fontSize), count: lines.length,
+      inside: lines.every(line => line.left >= -1 && line.right <= innerWidth + 1),
+      first: lines[0].top + scrollY, last: lines[lines.length - 1].bottom + scrollY };
+  }, originalSize);
+  expect(edges.font).toBeCloseTo(2 * originalSize, 2);
+  expect(edges.count).toBeGreaterThan(1);
+  expect(edges.inside).toBe(true);
+  for (const printedY of [edges.first, edges.last]) {
+    const visible = await page.evaluate(y => {
+      scrollTo({ top: y - innerHeight / 2, behavior: 'instant' });
+      return y - scrollY >= 0 && y - scrollY <= innerHeight;
+    }, printedY);
+    expect(visible).toBe(true);
+  }
+  expect(await passage.textContent()).toBe(oracle.scenes[16].text);
   await expectNoOverflow(page);
 });
 
