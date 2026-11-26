@@ -1,8 +1,14 @@
 # One Sky, Many Stories — Cinematic Web Edition
 
-全20場面を縦にスクロールして読む英語絵本。Luna、Leo、Noahが、同じ星団をめぐる日本、ギリシャ、ニュージーランドの物語を語る。v0.1 Foundation の基準画面は iPhone 16 縦持ちの393 × 852 CSS px。
+全20場面の英語絵本。Luna、Leo、Noahが、一つの星団をめぐる日本、ギリシャ、ニュージーランドの物語を語る。縦画面には描き下ろした挿絵、横画面にはPDFの横長原画を使う。iPhone 16の縦持ち（393 × 852 CSS px）を基準に設計した。
 
 [iPhoneで絵本を読む](https://belltreetech.github.io/one-sky-many-stories/) · [スマートフォンの冒頭画面](docs/screenshots/iphone-01.webp) · [デスクトップの冒頭画面](docs/screenshots/desktop-opening.webp) · [公式スキルの導入記録](docs/tooling.md)
+
+## 読み聞かせる
+
+リンクを開くと第1場面の本文が読める。指でスクロールするか、画面下の「読み聞かせを始める」を押し、「次へ」「前へ」で進む。第7場面ではルナと星を数え、第8場面ではレオの望遠鏡をのぞく。第11場面では七姉妹を眺めたあと、次のひと送りでルナの問いに対するレオの答えが現れる。
+
+対応ブラウザーでは「英語で聴く」が、その位置の英文を端末の音声合成で読む。音声の有無や声質は端末・言語設定による。自分の声で読むときはそのまま「次へ」で進める。最終場面の「最初へ」で冒頭に戻る。[全20場面の演出表](specs/portrait-edition/spec.md)
 
 ## 起動
 
@@ -30,7 +36,8 @@ npm run preview -- --host 127.0.0.1 --port 4181 --strictPort
 
 - [story.json](src/data/story.json) に20場面の本文、順序、章、画像の相対パス、寸法、英語の代替説明がある。章名と代替説明はWeb版の編集情報。
 - [原寸のWebP](public/art/) は3ページ目が1671 × 940 px、残る19ページが1672 × 940 px。合計7,621,822バイト。20枚のJPEG原データも今回の作業環境の `.private/pdf-originals/` に保存した。Popplerが抽出したJPEGとも20枚すべてバイト一致した。
-- [背景用素材](public/atmosphere/) は各場面の色を保つ小さなぼかし画像と、1ページ目の原画から切り出した星空。追加のAI生成画像は使用していない。
+- [背景用素材](public/atmosphere/) は各場面の色を保つ小さなぼかし画像と、1ページ目の原画から切り出した星空。
+- [縦版の挿絵](public/portrait/) は原作の人物・小道具・画風を参照し、内蔵ImageGenで場面ごとに再生成したWebP。望遠鏡の中に見える星団は独立した一枚。ギリシャの丘の無人の背景も独立させ、七姉妹の前後の絵をなめらかにつなぐ。
 
 再抽出にはPython 3.10以降とPopplerのコマンドが必要。以下はプロジェクト直下からの実行例。
 
@@ -44,7 +51,7 @@ python3 -m venv .private/extract-env
 
 ## 表示とアニメーションの構成
 
-各場面は独立したHTMLセクション。スマートフォンでは原画を横幅に合わせ、同じ絵の背景を本文の下まで広げる。スクロールを止めるとその位置で読める。本文は選択・コピーできる。幅の広い画面では、挿絵に重なる左側に英文が流れる。
+各場面は独立したHTMLセクション。縦画面では縦原画を表示し、画面端に大気と光を重ねる。スクロールを止めるとその位置で読める。本文は選択・コピーできる。幅の広い画面では、挿絵に重なる左側に英文が流れる。
 
 | 担当 | 実装 | 動作 |
 |---|---|---|
@@ -55,7 +62,7 @@ python3 -m venv .private/extract-env
 | Particle Engine | [ParticleEngine.tsx](src/engine/ParticleEngine.tsx) | 固定Canvas 1枚で星を明滅させる。描画解像度と更新頻度に上限を設け、動作軽減時・非表示タブでは停止。 |
 | Scene Transition | [sceneTransition.ts](src/engine/sceneTransition.ts) | 場面の出入りで上下の光量を変える。上方向・下方向とも同じスクロール位置に同期。 |
 
-固有の演出は `sceneEffects` に場面番号を追加する。将来の縦長素材は [Scene型](src/data/edition.ts) の `portrait` に画像パス・幅・高さを指定する。セーフエリアには `viewport-fit=cover` と `env(safe-area-inset-*)`、表示高には `svh`・`dvh` を使う。本文は拡大に合わせて改行し、必要な高さまで場面が伸びる。
+縦版の[演出設定](src/data/portrait.ts)は場面ごとの注視点、カメラの進み方、発見の場面にある英文の区切りを定める。[縦版タイムライン](src/engine/portraitTimeline.ts)は現在のスクロール位置から望遠鏡の視野や神話への移行を描く。原文は [story.json](src/data/story.json) に一度だけ保持する。セーフエリアには `viewport-fit=cover` と `env(safe-area-inset-*)`、表示高には `svh`・`dvh` を使う。本文は拡大に合わせて改行し、必要な高さまで場面が伸びる。
 
 タイトルのCormorant Garamond、章名のCinzel、本文のLoraをローカルWOFF2で配信する。インストールした各書体のSIL Open Font Licenseを確認し、ビルド時に各ライセンスを `dist/licenses/` へコピーする。GSAPおよびReact関連の通知も同梱する。
 
@@ -70,7 +77,17 @@ npm test
 
 テストにはPython 3も使う。Playwrightが一時静的サーバーを127.0.0.1:4182で起動し、実際の `dist/` を `/one-sky-many-stories/` にマウントする。スクリーンショットは `artifacts/screenshots/`、失敗時のトレースは `artifacts/test-results/` に出力する。
 
-2026年11月26日のmacOSで、iPhone 16相当のWebKit 27.2（393 × 852、DPR 3）とChromium 159（1440 × 900）を実際に起動した。各5件、合計10件が合格した。
+### 縦版の検証
+
+2026年11月26日、配布用ビルド（79ファイル、15,882,347バイト）をPagesのサブパスで開き、iPhone・iPad相当のWebKitとデスクトップChromiumで計42件の検査が通過した。
+
+[縦版の検証記録と再現手順](docs/portrait-qa.md)には、iPhone・iPad縦画面のWebKit、横画面のChromium、GitHub Pagesの公開URLの検査方法を記載した。第7・8・11場面は両方の読書位置を含め、全23箇所で英文を照合する。文字拡大、順送り・逆送り、端末回転、動きの軽減、画像の読み込み失敗時の動作も確認対象になる。
+
+XcodeのiPhone 16シミュレーター（iOS 26.5）のMobile Safariでも、読み聞かせを始めてから全23箇所を順に送り、最終場面から戻って冒頭を読み返す操作を実施した。実機での発熱、搭載音声の音質や発音は未計測。
+
+### Foundation版の検証記録
+
+以下の数値は縦版に着手する前のFoundation版の記録。2026年11月26日のmacOSで、iPhone 16相当のWebKit 27.2（393 × 852、DPR 3）とChromium 159（1440 × 900）を実際に起動した。各5件、合計10件が合格した。
 
 | 確認対象 | 最終結果 |
 |---|---|
@@ -84,7 +101,7 @@ npm test
 
 ## GitHub ActionsとPages
 
-開発用ブランチは `feature/foundation`。[CI](.github/workflows/ci.yml) がpush・PR時に依存関係の復元、型検査、ビルド、WebKit／Chromium試験を実行する。[Pagesワークフロー](.github/workflows/pages.yml) はmainから手動で起動し、同じ検査を通過した配布物をデプロイする。2本のワークフローはactionlintでも検査した。
+縦版の開発用ブランチは `feature/portrait-cinematic-edition`。Foundation版は `feature/foundation`。[CI](.github/workflows/ci.yml) がpush・PR時に依存関係の復元、型検査、ビルド、WebKit／Chromium試験を実行する。[Pagesワークフロー](.github/workflows/pages.yml) はmainから手動で起動し、同じ検査を通過した配布物をデプロイする。2本のワークフローはactionlintでも検査した。
 
 公開先は [BelltreeTech の GitHub Pages](https://belltreetech.github.io/one-sky-many-stories/)。このリポジトリではPagesのビルド元を **GitHub Actions** に設定している。更新版を公開するにはmainから **Publish GitHub Pages** を実行する。通常のプロジェクトサイトではリポジトリ名からbase pathを決める。ドメイン直下用のローカルビルドには `VITE_BASE_PATH=/ npm run build` が使える。[Viteの静的デプロイ](https://vite.dev/guide/static-deploy.html#github-pages)
 
