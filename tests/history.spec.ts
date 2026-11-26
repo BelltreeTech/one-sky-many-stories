@@ -35,7 +35,10 @@ test('Safari history preserves a reading pause, and a fresh link opens at the co
   }
   const linked = await context.newPage();
   try {
-    await linked.goto(new URL('#scene-05', address).href);
+    const coverURL = new URL('?reader=family&reader=two', address);
+    const chapterURL = new URL('#scene-05', coverURL);
+    await linked.goto(chapterURL.href);
+    await expect(linked).toHaveURL(chapterURL.href);
     const fifth = linked.locator('[data-scene="5"]');
     await expect(linked.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '5');
     const image = fifth.locator('.scene-image');
@@ -49,9 +52,29 @@ test('Safari history preserves a reading pause, and a fresh link opens at the co
     expect(await fifth.locator('.passage').textContent()).toBe(oracle.scenes[4].text);
     await linked.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await expect(linked.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '1');
+    // WebKit can resolve an old fragment after pageshow. On the next load
+    // the saved cover and its query must be the final address and position.
     await linked.reload();
+    await expect(linked).toHaveURL(coverURL.href);
     await expect(linked.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '1');
     await expect.poll(() => linked.evaluate(() => scrollY)).toBe(0);
+
+    // A reload can begin before the old page receives its scroll event.
+    // Updating that outgoing page's URL would lose the history entry.
+    await linked.goto('about:blank');
+    await linked.goto(chapterURL.href);
+    await expect(linked.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '5');
+    const entry = await linked.evaluate(() => {
+      history.replaceState({ ...history.state, familyBookmark: true }, '');
+      return history.state.oneSkyEntry;
+    });
+    await Promise.all([
+      linked.waitForEvent('load'),
+      linked.evaluate(() => { scrollTo({ top: 0, behavior: 'instant' }); location.reload(); }),
+    ]);
+    await expect(linked).toHaveURL(coverURL.href);
+    await expect.poll(() => linked.evaluate(() => scrollY)).toBe(0);
+    expect(await linked.evaluate(() => [history.state.oneSkyEntry, history.state.familyBookmark])).toEqual([entry, true]);
   } finally {
     await linked.close();
   }
