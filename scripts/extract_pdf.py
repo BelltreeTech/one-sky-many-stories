@@ -85,6 +85,10 @@ def extract_scene(document, page, expected, directory):
         if art.size != (expected["width"], expected["height"]):
             raise ValueError(f"Image dimensions disagree on page {number}")
         art.save(directory / f"{number:02}.webp", "WEBP", quality=87, method=6)
+        if number == 1:
+            # A single unscaled sample of the painted sky, clear of Luna and the Pleiades.
+            sky = art.crop((round(art.width * .32), 0, round(art.width * .60), round(art.height * .15)))
+            sky.save(directory / "night-sky.webp", "WEBP", quality=94, method=6)
         # Preserve the colors of the sky and ground for the portrait background.
         # The foreground uses the full illustration above, with its native aspect ratio.
         colors = art.convert("RGB").resize((80, 80), Image.Resampling.BOX)
@@ -106,10 +110,12 @@ def save_json(data, path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("pdf", type=Path, help="The unchanged source edition")
-    parser.add_argument("--originals-dir", type=Path, help="Optional directory outside this repository for source JPEGs")
+    parser.add_argument("--originals-dir", type=Path, help="Store source JPEGs in .private/ or outside the repository")
     args = parser.parse_args()
-    if args.originals_dir and args.originals_dir.resolve().is_relative_to(ROOT):
-        parser.error("--originals-dir must be outside the web repository")
+    if args.originals_dir:
+        destination = args.originals_dir.resolve()
+        if destination.is_relative_to(ROOT) and not destination.is_relative_to(ROOT / ".private"):
+            parser.error("Choose .private/ or a directory outside the web repository for original JPEGs")
     pdf = args.pdf.resolve()
     if sha256(pdf.read_bytes()).hexdigest() != SOURCE_HASH:
         parser.error("PDF does not match the source edition")
@@ -126,6 +132,7 @@ def main():
         art_dir.mkdir(parents=True, exist_ok=True)
         atmosphere_dir = ROOT / "public/atmosphere"
         atmosphere_dir.mkdir(parents=True, exist_ok=True)
+        copyfile(staging / "night-sky.webp", atmosphere_dir / "night-sky.webp")
         if args.originals_dir:
             args.originals_dir.mkdir(parents=True, exist_ok=True)
         for scene in scenes:
