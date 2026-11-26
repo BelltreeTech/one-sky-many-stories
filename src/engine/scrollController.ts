@@ -94,6 +94,8 @@ export function useScrollController() {
       if (!frame) frame = requestAnimationFrame(locate)
     }
     function followGesture(event: Event) {
+      // Trackpad pinch and Ctrl+wheel belong to zoom, not page navigation.
+      if (event instanceof WheelEvent && event.ctrlKey) return
       if (event instanceof KeyboardEvent && !['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) return
       // WebKit cancels native momentum if a scripted correction lands during
       // the same frame as a scroll gesture or keyboard navigation.

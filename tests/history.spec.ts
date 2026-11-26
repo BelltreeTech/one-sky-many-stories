@@ -78,3 +78,25 @@ test('reloading during an unfinished scroll keeps the last paragraph in this his
     return Math.abs((rect.top + rect.bottom - innerHeight) / 2);
   })).toBeLessThan(4);
 });
+
+test('a full session store leaves the current paragraph available in browser history', async ({ page }) => {
+  await page.goto('./#scene-05');
+  await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '5');
+  await page.evaluate(() => {
+    sessionStorage.setItem('reader-test-other-entry', 'keep');
+    scrollTo({ top: 0, behavior: 'instant' });
+  });
+  await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '1');
+  await page.evaluate(() => {
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (this === sessionStorage) throw new DOMException('Session quota reached', 'QuotaExceededError');
+      return setItem.call(this, key, value);
+    };
+    document.querySelector('#scene-17 .beat-text')!.scrollIntoView({ block: 'center', behavior: 'instant' });
+  });
+  await expect.poll(() => page.evaluate(() => history.state?.oneSkyReading?.scene)).toBe('scene-17');
+  await page.reload();
+  await expect(page.locator('[data-current-scene]')).toHaveAttribute('data-current-scene', '17');
+  expect(await page.evaluate(() => sessionStorage.getItem('reader-test-other-entry'))).toBe('keep');
+});

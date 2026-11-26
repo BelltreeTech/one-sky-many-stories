@@ -16,8 +16,11 @@ export function preserveReadingHistory() {
   }
   function readPlace() {
     try {
-      const saved = JSON.parse(sessionStorage.getItem(storageKey()) ?? 'null')
-      if (saved?.address === address()) return saved
+      const stored = JSON.parse(sessionStorage.getItem(storageKey()) ?? 'null')
+      if (Array.isArray(stored)) {
+        const [url, y, scene, beat, progress] = stored
+        if (url === address()) return { address: url, y, scene, beat, progress }
+      } else if (stored?.address === address()) return stored
     } catch { /* History still works if session storage is unavailable. */ }
     return history.state?.[entryKey]
   }
@@ -35,7 +38,16 @@ export function preserveReadingHistory() {
       beat: anchor.dataset.beat, progress: Math.max(0, Math.min(1, (middle - rect.top) / Math.max(1, rect.height))),
     }
     try {
-      sessionStorage.setItem(storageKey(), JSON.stringify(place))
+      const key = storageKey()
+      // Reserve one fixed-size slot per history entry. A larger scroll offset
+      // can then replace the cover even if the tab's storage fills up later.
+      const entry = [place.address, place.y, place.scene, place.beat, Number(place.progress.toFixed(7))]
+      const size = JSON.stringify(place.address).length + 64
+      try {
+        sessionStorage.setItem(key, JSON.stringify(entry).padEnd(size))
+      } catch {
+        sessionStorage.removeItem(key)
+      }
     } catch { /* The history entry is the fallback when storage is full. */ }
     try {
       history.replaceState({ ...history.state, [entryKey]: place }, '')
