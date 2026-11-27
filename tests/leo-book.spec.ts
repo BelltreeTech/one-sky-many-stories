@@ -158,9 +158,18 @@ test('the book stops drawing while only its passage is visible and restores the 
       apply(target, receiver, args) { draws++; return Reflect.apply(target, receiver, args) },
     })
     try {
+      // Rendering frames and native intersection notifications are separate
+      // queues. Observe this same canvas leaving before counting idle paints.
+      const outside = new Promise<void>(resolve => {
+        const observer = new IntersectionObserver(([entry]) => {
+          if (entry.boundingClientRect.bottom >= 0 || entry.intersectionRect.height > 0) return
+          observer.disconnect()
+          resolve()
+        })
+        observer.observe(surface)
+      })
       window.scrollBy({ top: surface.getBoundingClientRect().bottom + 12, behavior: 'instant' })
-      // Allow the visible-area observer to receive the new intersection.
-      await new Promise(requestAnimationFrame)
+      await outside
       await new Promise(requestAnimationFrame)
       const first = draws
       await new Promise(resolve => setTimeout(resolve, 550))
