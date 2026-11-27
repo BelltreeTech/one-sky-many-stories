@@ -1,15 +1,18 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { openBook, test } from './reader-harness';
+import { openBook, sceneAt, test } from './reader-harness';
+import { stagePose } from './playback-harness';
 
 // Capture what reaches the reader. An opaque camera insert can completely
 // hide a pulse whose underlying DOM geometry and opacity are both correct.
 async function visiblePulsePixels(page: Page, star: Locator) {
   const crop = star.locator('..');
-  const lit = await crop.screenshot({ scale: 'css' });
+  const clip = await crop.boundingBox();
+  if (!clip) throw Error('The painted star must be visible');
+  const lit = await page.screenshot({ scale: 'css', clip });
   await star.evaluate(node => { node.style.visibility = 'hidden'; });
   let unlit: Buffer;
   try {
-    unlit = await crop.screenshot({ scale: 'css' });
+    unlit = await page.screenshot({ scale: 'css', clip });
   } finally {
     await star.evaluate(node => node.style.removeProperty('visibility'));
   }
@@ -36,41 +39,49 @@ async function visiblePulsePixels(page: Page, star: Locator) {
 for (const viewport of [{ width: 393, height: 852 }, { width: 1280, height: 320 }]) {
   test(`all six stars reach peak brightness in view and in order at ${viewport.width}×${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
+    // Freeze before loading the reader. The time between two browser protocol
+    // calls on a busy runner must not consume part of the first star's pulse.
+    await page.clock.install({ time: new Date('2025-02-01T00:00:00Z') });
+    await page.clock.pauseAt(new Date('2025-02-01T00:10:00Z'));
     await openBook(page);
-    const stage = page.locator('#scene-07 .portrait-stage');
-    await stage.scrollIntoViewIfNeeded();
+    const stage = sceneAt(page, 7).locator('.portrait-stage');
+    await stage.evaluate(art => {
+      const box = art.getBoundingClientRect();
+      scrollBy({ top: box.top + .18 * box.height - innerHeight / 2, behavior: 'instant' });
+    });
+    await expect.poll(async () => {
+      await page.clock.runFor(16);
+      return stage.getAttribute('data-playback');
+    }).toBe('playing');
     const lights = stage.locator('[data-painted-detail^="counted-star-"] > i');
     await expect(lights).toHaveCount(6);
-    const peaks = await stage.evaluate(async el => {
-      const glows = Array.from(el.querySelectorAll<HTMLElement>('[data-painted-detail^="counted-star-"] > i'));
-      const maxima = glows.map(() => ({ opacity: -1, y: 0, top: 0, bottom: 0 }));
-      const { top, height } = el.getBoundingClientRect();
-      const start = scrollY + top - innerHeight;
-      const span = height + innerHeight;
-      for (let step = 0; step <= 90; step++) {
-        scrollTo({ top: start + step * span / 90, behavior: 'instant' });
-        await new Promise(requestAnimationFrame);
-        await new Promise(requestAnimationFrame);
-        glows.forEach((glow, index) => {
-          const opacity = Number(getComputedStyle(glow).opacity);
-          if (opacity > maxima[index].opacity) {
-            const { top, bottom } = glow.getBoundingClientRect();
-            maxima[index] = { opacity, y: scrollY, top, bottom };
-          }
-        });
+    const firstY = await page.evaluate(() => scrollY);
+    const peaks = Array.from({ length: 6 }, () => ({ opacity: -1, progress: 0 }));
+    const pixels = new Map<number, number>();
+    for (let frame = 0; frame < 135; frame++) {
+      const progress = await stagePose(stage);
+      const samples = await lights.evaluateAll(nodes => nodes.map(node => {
+        const { top, bottom } = node.getBoundingClientRect();
+        return { opacity: Number(getComputedStyle(node).opacity), top, bottom };
+      }));
+      for (const [index, sample] of samples.entries()) {
+        if (sample.opacity > peaks[index].opacity) peaks[index] = { opacity: sample.opacity, progress };
+        if (sample.opacity > .60 && !pixels.has(index)) {
+          expect(sample.top).toBeGreaterThanOrEqual(0);
+          expect(sample.bottom).toBeLessThanOrEqual(viewport.height);
+          pixels.set(index, await visiblePulsePixels(page, lights.nth(index)));
+        }
       }
-      return maxima;
-    });
+      if (progress >= 1) break;
+      await page.clock.runFor(40);
+    }
+    await expect(stage).toHaveAttribute('data-playback', 'complete');
+    expect(await page.evaluate(() => scrollY)).toBe(firstY);
     for (const [index, peak] of peaks.entries()) {
       const label = 'star ' + (index + 1);
       expect(peak.opacity, label + ' should light up').toBeGreaterThan(.60);
-      expect(peak.top, label + ' should peak below the top edge').toBeGreaterThanOrEqual(0);
-      expect(peak.bottom, label + ' should peak above the bottom edge').toBeLessThanOrEqual(viewport.height);
-      if (index) expect(peak.y, label + ' should follow the previous star').toBeGreaterThan(peaks[index - 1].y);
-      await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), peak.y);
-      const star = lights.nth(index);
-      await expect.poll(() => star.evaluate(node => Number(getComputedStyle(node).opacity))).toBeGreaterThan(.60);
-      expect(await visiblePulsePixels(page, star), label + ' should brighten the actual painting').toBeGreaterThan(8);
+      if (index) expect(peak.progress).toBeGreaterThan(peaks[index - 1].progress);
+      expect(pixels.get(index), label + ' should brighten the actual painting').toBeGreaterThan(8);
     }
   });
 }

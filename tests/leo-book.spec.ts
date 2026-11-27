@@ -1,5 +1,6 @@
 import { expect, type Locator } from '@playwright/test'
 import { test, openBook, sceneAt } from './reader-harness'
+import { enterPainting, leavePainting, waitForPose } from './playback-harness'
 
 // This is the position of the painted book on Leo's portrait. Move that point
 // to a real part of the viewport, as a reader would while advancing the strip.
@@ -45,7 +46,7 @@ async function visibleBookPixels(stage: Locator) {
 }
 
 // Observe the first paper-only frame before timing the settle. A slow browser
-// can take several frames to present the closed cover after the native scroll.
+// can take several frames to present the closed cover after its hinge reaches the spine.
 async function closeBookAndSampleLight(stage: Locator, delayedTimestamp = false) {
   return stage.evaluate(async (node, delayClock) => {
     const surface = node.querySelector<HTMLCanvasElement>('.leo-book canvas')!
@@ -60,15 +61,13 @@ async function closeBookAndSampleLight(stage: Locator, delayedTimestamp = false)
       return count
     }
     try {
-      const rect = node.getBoundingClientRect()
-      window.scrollBy({ top: rect.top + rect.height * .58 - innerHeight * .24, behavior: 'instant' })
       let first = 0
-      const deadline = performance.now() + 2500
+      const deadline = performance.now() + 5000
       do {
         await nextPaint()
-        first = painted()
+        if (Number(node.style.getPropertyValue('--cinematic-progress')) >= .72) first = painted()
       } while ((first <= 8 || first >= 1600) && performance.now() < deadline)
-      // Give the 460ms paper motion time to finish, then sample a presented
+      // Give the paper reflection time to finish, then sample a presented
       // frame without competing for GPU readback throughout the animation.
       await new Promise(resolve => setTimeout(resolve, 550))
       await nextPaint()
@@ -80,29 +79,30 @@ async function closeBookAndSampleLight(stage: Locator, delayedTimestamp = false)
   }, delayedTimestamp)
 }
 
-test('Leo closes the Pegasus book over the painted pages and can open it in reverse', async ({ page }) => {
+test('Leo closes the Pegasus book while the reader rests and opens it on a fresh entry', async ({ page }) => {
   const requests: string[] = []
   page.on('request', req => { if (req.url().endsWith('/motion/leo-book.webp')) requests.push(req.url()) })
   await openBook(page)
   expect(requests).toHaveLength(0)
 
-  const stage = sceneAt(page, 12).locator('.portrait-stage')
-  await placeBook(stage, .85)
+  const stage = await enterPainting(page, 12, .58)
   await expect(stage.locator('.leo-book img')).toHaveAttribute('data-decoded', 'true')
   await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeGreaterThan(1800)
   const open = await visibleBookPixels(stage)
   expect(open.handError).toBe(0)
-  await placeBook(stage, .52)
-  await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeLessThan(open.paper * .8)
+  const y = await page.evaluate(() => scrollY)
+  await waitForPose(stage, .50)
   const middle = await visibleBookPixels(stage)
   expect(middle.paper).toBeGreaterThan(120)
+  expect(middle.paper).toBeLessThan(open.paper * .8)
   expect(middle.handError).toBe(0)
   const settled = await closeBookAndSampleLight(stage)
   expect(settled.first, 'Lit leaves briefly remain over the closed cover').toBeGreaterThan(8)
   expect(settled.first).toBeLessThan(1600)
   expect(settled.last).toBe(0)
-
-  await placeBook(stage, .85)
+  expect(await page.evaluate(() => scrollY)).toBe(y)
+  await leavePainting(page, 12, 'below')
+  await enterPainting(page, 12, .58)
   await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeGreaterThan(open.paper * .97)
   expect(requests).toHaveLength(1)
 })
@@ -143,7 +143,7 @@ test('the original book stays readable in reduced motion and when its optional p
 test('the book stops drawing while only its passage is visible and restores the current pose on return', async ({ page }) => {
   await openBook(page)
   const stage = sceneAt(page, 12).locator('.portrait-stage')
-  await placeBook(stage, .85)
+  await enterPainting(page, 12, .58)
   await expect(stage.locator('.leo-book img')).toHaveAttribute('data-decoded', 'true')
   await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeGreaterThan(1800)
   const open = await visibleBookPixels(stage)
@@ -184,17 +184,20 @@ test('the book stops drawing while only its passage is visible and restores the 
   expect(hidden.sameCanvas).toBe(true)
   expect(hidden.draws, 'The paper-edge animation releases the offscreen canvas').toBe(0)
 
-  await placeBook(stage, .52)
-  await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeLessThan(open.paper * .8)
-  await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeGreaterThan(120)
+  await enterPainting(page, 12, .58)
+  await waitForPose(stage, .49)
+  const returned = await visibleBookPixels(stage)
+  expect(returned.paper).toBeLessThan(open.paper * .8)
+  expect(returned.paper).toBeGreaterThan(120)
 })
 
 test('a delayed frame timestamp still lets the brief paper reflection return to the original painting', async ({ page }) => {
   await openBook(page)
   const stage = sceneAt(page, 12).locator('.portrait-stage')
-  await placeBook(stage, .52)
+  await enterPainting(page, 12, .58)
   await expect(stage.locator('.leo-book img')).toHaveAttribute('data-decoded', 'true')
   await expect.poll(async () => (await visibleBookPixels(stage)).painted).toBeGreaterThan(1600)
+  await waitForPose(stage, .48)
   const settled = await closeBookAndSampleLight(stage, true)
   expect(settled.first).toBeGreaterThan(8)
   expect(settled.first).toBeLessThan(1600)

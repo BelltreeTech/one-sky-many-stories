@@ -10,7 +10,7 @@
 
 第7場面では祖母の問いとルナの答えの間に、六つの星を探せる縦絵がある。第8場面ではレオの望遠鏡の先に淡い星が広がる。第11場面はルナの問いから七姉妹の姿を通り、レオの答えへ続く。[全20場面の演出表](specs/portrait-edition/spec.md)
 
-全20場面で、指の送りに合わせて絵の中のものが動く。「Subaru」では夜の縁側に桜の花びらが舞い、第7場面ではルナが数える六つの星が一つずつ光る。第12場面では下へ送るほどレオの青い本が閉じ、逆に送ると同じ角度まで開く。指が止まると紙の端と表紙の照り返しだけが短く揺れる。端末で「視差効果を減らす」を有効にすると静止した挿絵で読める。[六つの星](https://belltreetech.github.io/one-sky-many-stories/#scene-07)・[レオが本を閉じる場面](https://belltreetech.github.io/one-sky-many-stories/#scene-12)・[Matarikiの食卓](https://belltreetech.github.io/one-sky-many-stories/#scene-17)
+全20場面で、主役が見える位置まで送ると、その場面の演出が自動で最後まで進む。「Subaru」では夜の縁側に桜の花びらが舞い、第7場面ではルナが数える六つの星が一つずつ光る。第12場面ではレオの両手にある青い本が見えたところで指を止めると、表紙がゆっくり閉じ、紙の端と照り返しが静まる。絵がいったん画面の外へ出てから戻ると、もう一度見られる。端末で「視差効果を減らす」を有効にすると静止した挿絵で読める。[六つの星](https://belltreetech.github.io/one-sky-many-stories/#scene-07)・[レオが本を閉じる場面](https://belltreetech.github.io/one-sky-many-stories/#scene-12)・[Matarikiの食卓](https://belltreetech.github.io/one-sky-many-stories/#scene-17)
 
 ## 起動
 
@@ -39,7 +39,7 @@ npm run preview -- --host 127.0.0.1 --port 4181 --strictPort
 - [story.json](src/data/story.json) に20場面の本文、順序、章、画像の相対パス、寸法、英語の代替説明がある。章名と代替説明はWeb版の編集情報。
 - [原寸のWebP](public/art/) は3ページ目が1671 × 940 px、残る19ページが1672 × 940 px。合計7,621,822バイト。20枚のJPEG原データも今回の作業環境の `.private/pdf-originals/` に保存した。Popplerが抽出したJPEGとも20枚すべてバイト一致した。
 - [背景用素材](public/atmosphere/) は各場面の色を保つ小さなぼかし画像と、1ページ目の原画から切り出した星空。
-- [縦版の挿絵](public/portrait/) は原作の人物・小道具・画風を参照し、内蔵ImageGenで場面ごとに再生成したWebP。望遠鏡の中に見える星団は独立した一枚。祖母を思い出す前の夜空と、七姉妹が現れる前の無人の丘も用意した。元の縦絵と同じ座標に重ね、スクロールに合わせて祖母や姉妹が浮かぶ。
+- [縦版の挿絵](public/portrait/) は原作の人物・小道具・画風を参照し、内蔵ImageGenで場面ごとに再生成したWebP。望遠鏡の中に見える星団は独立した一枚。祖母を思い出す前の夜空と、七姉妹が現れる前の無人の丘も用意した。元の縦絵と同じ座標に重ね、絵が画面に入ると祖母や姉妹がゆっくり浮かぶ。
 
 再抽出にはPython 3.10以降とPopplerのコマンドが必要。以下はプロジェクト直下からの実行例。
 
@@ -59,14 +59,14 @@ python3 -m venv .private/extract-env
 |---|---|---|
 | Scene Renderer | [SceneRenderer.tsx](src/components/SceneRenderer.tsx) | 全景・背景・見出し・英文を配置。近い場面だけに画像URLを割り当てる。 |
 | Scroll Controller | [scrollController.ts](src/engine/scrollController.ts) | ネイティブスクロールの中央にある場面を追跡。回転やSafariの文字拡大では直前の段落または絵の位置を保つ。 |
-| Animation Timeline | [portraitTimeline.ts](src/engine/portraitTimeline.ts) | 画面内の場面にGSAP ScrollTriggerを設定し、外れたら解除。カメラが全景の範囲内でゆっくり動く。 |
+| Animation Timeline | [portraitTimeline.ts](src/engine/portraitTimeline.ts) | GSAP ScrollTriggerで絵と主役の表示位置を調べる。開始後は場面専用の時計でカメラと絵を動かす。 |
 | Typography Reveal | [typographyReveal.ts](src/engine/typographyReveal.ts) | 発見の場面の原文を問いと答えに分ける。途中に置いた絵を指で送ると次の文が見える。 |
 | Particle Engine | [ParticleEngine.tsx](src/engine/ParticleEngine.tsx) | 今読んでいる絵のCanvas 1枚で星を明滅させる。描画解像度と更新頻度に上限を設け、動作軽減時・非表示タブでは停止。 |
-| Scene Transition | [sceneTransition.ts](src/engine/sceneTransition.ts) | スクロール量から、思い出や神話の像が原画に重なる濃度を求める。上方向・下方向とも同じスクロール位置に同期。 |
+| Scene Transition | [sceneTransition.ts](src/engine/sceneTransition.ts) | 経過時間から、思い出や神話の像が原画に重なる濃度を滑らかに変える。 |
 
 [挿絵の細部の配置](src/data/illustrationMotion.ts)は、原画を基準に手・衣服・水面・光の位置と動く範囲を指定する。[レオの本](src/engine/leoBook.ts)は原画の両手の位置に合わせた小さな画像を使う。追加の描画は画面付近の原寸の挿絵が読み込まれたときに有効になり、縮小プレビューや動作軽減時は静止画が見える。
 
-縦版の[演出設定](src/data/portrait.ts)は場面ごとの注視点、カメラの進み方、発見の場面にある英文の区切りを定める。[縦版タイムライン](src/engine/portraitTimeline.ts)は現在のスクロール位置から望遠鏡の視野や神話への移行を描く。原文は [story.json](src/data/story.json) に一度だけ保持する。セーフエリアには `viewport-fit=cover` と `env(safe-area-inset-*)`、表示高には `svh`・`dvh` を使う。本文は拡大に合わせて改行し、必要な高さまで場面が伸びる。
+縦版の[演出設定](src/data/portrait.ts)は場面ごとの注視点、カメラの進み方、発見の場面にある英文の区切りを定める。[縦版タイムライン](src/engine/portraitTimeline.ts)は場面ごとの秒数で望遠鏡の視野や神話への移行を描く。原文は [story.json](src/data/story.json) に一度だけ保持する。セーフエリアには `viewport-fit=cover` と `env(safe-area-inset-*)`、表示高には `svh`・`dvh` を使う。本文は拡大に合わせて改行し、必要な高さまで場面が伸びる。
 
 タイトルのCormorant Garamond、章名のCinzel、本文のLoraをローカルWOFF2で配信する。インストールした各書体のSIL Open Font Licenseを確認し、ビルド時に各ライセンスを `dist/licenses/` へコピーする。GSAPおよびReact関連の通知も同梱する。
 
@@ -81,6 +81,14 @@ npm test
 
 テストにはPython 3も使う。Playwrightが一時静的サーバーを127.0.0.1:4182で起動し、実際の `dist/` を `/one-sky-many-stories/` にマウントする。スクリーンショットと失敗時のトレースは、それぞれ `artifacts/webtoon-qa/screenshots/` と `artifacts/webtoon-qa/test-results/` に出力する。
 
+### ひと送りで再生する版の検証
+
+iPhone・iPad相当のWebKitで、全20枚の縦絵と独立した望遠鏡の視野を表示し、同じスクロール位置で途中の絵から終端まで進むことを確認した。動作軽減時には同じ21箇所で時間を空けた画面写真の画素が一致した。両条件で23箇所の英文を原稿と照合した。iPhone 16シミュレーターのSafariでは、七姉妹が昇る途中に別アプリを開き、約4秒後に戻って同じ姿と読書位置から再開することを確認した。
+
+遅い書体がページ送りの最中に届くと、Linux版WebKitでブラウザの位置補正が途中のスクロールを止める場合があった。書体の読み込み中に相対スクロールを始めた期間だけ位置補正を休ませ、即時に書体が届く場合と、実際に段落が動き始めてから届く場合を検査した。
+
+シーン内を少し上下する操作と、絵全体が画面から出た後の再入場を別々に試している。拡大時の開始位置は、モバイル設定のChromiumで縦方向2倍・横方向3倍のパンを検証した。物理iPhoneでのピンチ操作と電力消費は未計測。[上映と再読の試験](tests/scene-playback.spec.ts)・[拡大表示の試験](tests/pinch-playback.spec.ts)
+
 ### 挿絵の動きと慣性スクロールの検証
 
 2026年11月27日、iOS 26.5のiPhone 16シミュレーターでSafariを開き、「Subaru」から「The Seven Sisters」へ、続いて「Matariki」へ向かう同じフリックを、旧版とアドレスバー修正版（`index-Dnzcs1Ob.js`）で各6回試した。Safariのアドレスバーが収納される間、旧版は画面の先頭への移動と元位置への復帰を計18組実行し、指を離して97〜105 CSS pxで止まった。改訂版では位置の書き戻しが0回になり、321〜432 CSS pxを約2.1〜2.2秒かけて減速した。動画の同一フレームで英文と絵の目印を追い、改訂版の測定範囲で両者の移動量の差は最大3 CSS pxだった。改訂版の動作中の描画コールバック間隔は中央値17 ms、最大53 ms。物理端末でのフレーム間隔と発熱は未測定。
@@ -89,13 +97,13 @@ npm test
 
 再計測版（`index-D8hyX5VS.js`）でも同じ6回のフリックを行った。指を離したあと333〜412 CSS pxを2.10〜2.15秒かけて進み、位置の書き戻しは0回だった。動作中に記録した598回の描画コールバックの間隔は中央値17 ms、最大21 msだった。iPad相当のWebKitでは、書体の読み込みと逆送りが重なる時刻を変えて17条件を試し、すべてで同じ段落を1,154 CSS px往復できた。望遠鏡の読み込みと本の画面端の修正を含む配布候補（`index-BqmZpLbL.js`）では、同じ6回すべてで位置の書き戻しがなく、333〜338 CSS pxを2.098〜2.115秒で減速した。
 
-393 × 852のWebKitで全20場面のスクリーンショットを確認した。第7場面では六つの星がそれぞれ画面内で光り、第12場面では同じ位置へ逆送りすると同じ開き方に戻った。原画の両手を基準に5点を比較し、開いたときと途中のどちらでも手の色が原画と一致した。閉じ終えると上に重ねる絵の画素数はゼロになる。[全20場面の検査](tests/illustration-motion.spec.ts)・[本の描画と再読の検査](tests/leo-book.spec.ts)・[アドレスバーの回帰検査](tests/inertia.spec.ts)
+当時のスクロール連動版では、393 × 852のWebKitで全20場面のスクリーンショットを確認した。第7場面では六つの星がそれぞれ画面内で光り、第12場面では同じ位置へ逆送りすると同じ開き方に戻った。原画の両手を基準に5点を比較し、開いたときと途中のどちらでも手の色が原画と一致した。閉じ終えると上に重ねる絵の画素数はゼロになる。[全20場面の検査](tests/illustration-motion.spec.ts)・[本の描画と再読の検査](tests/leo-book.spec.ts)・[アドレスバーの回帰検査](tests/inertia.spec.ts)
 
 ### 縦画面の映画演出版
 
 冒頭ではルナの手元のランタンから三人のいる丘へ画角が開く。指で送るとすぐに読み進められる。「Subaru」の雪の山里、レオの本の中の尾根、ノアが語る夜明け前の湖、結末の谷には、それぞれ専用の縦原画を使った。20場面の英語はHTMLで表示し、三つの問いと答えを含む23箇所を順にも逆にも読める。
 
-カットは `src/components/CinematicShot.tsx`、絵に重ねる動きは `HillsideMotion.tsx`、`MythMotion.tsx`、`MatarikiMotion.tsx` で管理する。視野に入った場面だけに動く層を置き、カメラはブラウザのスクロール位置に従う。iOSの「視差効果を減らす」設定では縦原画と英文を静止画で読める。新しいカットと雲の素材は内蔵ImageGenで制作し、WebPに変換した。[制作仕様](specs/portrait-edition/spec.md#映画の画角と遠景)
+カットは `src/components/CinematicShot.tsx`、絵に重ねる動きは `HillsideMotion.tsx`、`MythMotion.tsx`、`MatarikiMotion.tsx` で管理する。視野に入った場面だけに動く層を置く。絵のおよそ半分とその場面の主役が画面に入ると、一度の送りで演出を最後まで見られる。レオの本は両手が見えてから閉じる。演出は約3.6〜5.2秒、本文の下に独立した望遠鏡の視野は約2.6秒。少しスクロールしても同じ再生が続く。絵全体が画面から出て戻ると再び始まる。iOSの「視差効果を減らす」設定では縦原画と英文を静止画で読める。新しいカットと雲の素材は内蔵ImageGenで制作し、WebPに変換した。[制作仕様](specs/portrait-edition/spec.md#映画の画角と遠景)
 
 11月27日の制作版 `07f7ec8` は型検査・配布ビルドと168件のPlaywright試験に合格した。iPhone 16相当の393 × 852、iPad WebKit、デスクトップChromiumで、六つの星の実際の発光、スロー回線で届いた絵、文字拡大、逆送り、結末の遠景を確認した。ローカルで配布する114ファイルを照合し、20場面の実画面を検収した。
 

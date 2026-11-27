@@ -41,6 +41,7 @@ export function useScrollController() {
     const steps = strip.querySelectorAll<HTMLElement>('[data-beat]')
     let frame = 0
     let gesture: 'relative' | 'absolute' | undefined
+    let restoreFontAnchor: (() => void) | undefined
     const viewport = window.visualViewport
     let previous: { width: number; stripWidth: number; height: number; y: number; anchor: ZoomAnchor } | undefined
     function locate() {
@@ -93,6 +94,28 @@ export function useScrollController() {
     function queue() {
       if (!frame) frame = requestAnimationFrame(locate)
     }
+    function keepFontSwapFromStoppingScroll() {
+      if (restoreFontAnchor || document.fonts.status !== 'loading') return
+      // WebKit's scroll anchor correction during a font swap can cancel a
+      // PageDown or touch coast. Keep normal anchoring while the reader rests.
+      const style = document.documentElement.style
+      const old = style.getPropertyValue('overflow-anchor')
+      const priority = style.getPropertyPriority('overflow-anchor')
+      const start = window.scrollY
+      function restore() {
+        if (restoreFontAnchor !== restore) return
+        restoreFontAnchor = undefined
+        style.setProperty('overflow-anchor', old, priority)
+        document.removeEventListener('scrollend', onRest)
+      }
+      function onRest() {
+        if (window.scrollY !== start) restore()
+      }
+      restoreFontAnchor = restore
+      style.setProperty('overflow-anchor', 'none', priority)
+      document.addEventListener('scrollend', onRest)
+      void document.fonts.ready.then(restore)
+    }
     function followGesture(event: Event) {
       // Trackpad pinch and Ctrl+wheel belong to zoom, not page navigation.
       if (event instanceof WheelEvent && event.ctrlKey) return
@@ -100,6 +123,9 @@ export function useScrollController() {
       // WebKit cancels native momentum if a scripted correction lands during
       // the same frame as a scroll gesture or keyboard navigation.
       gesture = event instanceof KeyboardEvent && (event.key === 'Home' || event.key === 'End') ? 'absolute' : 'relative'
+      if (gesture === 'relative' && (!('touches' in event) || (event as TouchEvent).touches.length === 1)) {
+        keepFontSwapFromStoppingScroll()
+      }
       queue()
     }
     const gestures = ['wheel', 'touchmove', 'keydown']
@@ -111,6 +137,7 @@ export function useScrollController() {
     viewport?.addEventListener('resize', queue)
     locate()
     return () => {
+      restoreFontAnchor?.()
       resize.disconnect()
       for (const type of gestures) window.removeEventListener(type, followGesture)
       window.removeEventListener('scroll', queue)

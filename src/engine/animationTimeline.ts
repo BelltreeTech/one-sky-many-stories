@@ -24,7 +24,7 @@ export function observeSceneLayout(strip: HTMLElement) {
   function measureViewport() {
     const nextHeight = window.innerHeight
     clearTimeout(toolbarSettled)
-    // The camera already follows a moving touch viewport on every scroll.
+    // Scene entry already observes the moving touch viewport.
     // Remeasure its resting position once after the toolbar finishes moving.
     if (window.innerWidth === width && ScrollTrigger.isTouch === 1 &&
       Math.abs(nextHeight - height) < height * .25) {

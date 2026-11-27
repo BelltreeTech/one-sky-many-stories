@@ -14,7 +14,7 @@ test('a decoded telescope stays at the current aperture while the hillside arriv
     const main = scene.locator('.scene-image');
     const lens = scene.locator('.lens-field');
     const image = lens.locator('.telescope-view');
-    await lens.evaluate(el => scrollBy({ top: el.getBoundingClientRect().top - innerHeight * .80, behavior: 'instant' }));
+    await lens.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
     await expect(image).toHaveAttribute('data-ready', 'true');
     await expect(scene.locator('[data-illustration-motion]')).toHaveCount(0);
     expect(await main.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBe(0);
@@ -24,11 +24,17 @@ test('a decoded telescope stays at the current aperture while the hillside arriv
       return {
         y: scrollY, aperture: getComputedStyle(el).getPropertyValue('--aperture').trim(),
         mask: getComputedStyle(el.querySelector('.telescope-view')!).maskImage,
-        clip: { x: Math.ceil(rect.left), y: Math.ceil(rect.top), width: Math.floor(rect.width - 1),
-          height: Math.floor(Math.min(rect.bottom, innerHeight) - Math.ceil(rect.top)) },
+        clip: { x: Math.ceil(rect.left), y: Math.max(0, Math.ceil(rect.top)), width: Math.floor(rect.width - 1),
+          height: Math.floor(Math.min(rect.bottom, innerHeight) - Math.max(0, Math.ceil(rect.top))) },
       };
     });
+    await expect(lens).toHaveAttribute('data-playback', 'playing');
+    await expect.poll(() => read().then(value => Number(value.aperture)), { intervals: [50] }).toBeGreaterThan(.10);
+    const moving = await read();
+    expect(Number(moving.aperture)).toBeLessThan(1);
+    await expect(lens).toHaveAttribute('data-playback', 'complete');
     const waiting = await read();
+    expect(moving.y).toBe(waiting.y);
     const before = await page.screenshot({ clip: waiting.clip });
     await info.attach('telescope-awaiting-hillside', { body: before, contentType: 'image/png' });
     allowHillside();
@@ -38,8 +44,7 @@ test('a decoded telescope stays at the current aperture while the hillside arriv
     const after = await page.screenshot({ clip: waiting.clip });
     await info.attach('telescope-after-hillside', { body: after, contentType: 'image/png' });
     expect(loaded.y).toBe(waiting.y);
-    expect(Number(loaded.aperture)).toBeGreaterThan(.05);
-    expect(Number(loaded.aperture)).toBeLessThan(.8);
+    expect(Number(loaded.aperture)).toBe(1);
     expect(loaded.mask, 'a stationary lens keeps the same painted mask').toBe(waiting.mask);
     expect(after.equals(before), 'the visible part of the lens does not flash').toBe(true);
   } finally {
@@ -61,14 +66,14 @@ test('the telescope holds its view through a hillside preview and pending full r
     await openBook(page);
     const scene = page.locator('#scene-08'), lens = scene.locator('.lens-field');
     const art = scene.locator('.scene-image'), camera = scene.locator('.camera');
-    await lens.evaluate(el => scrollBy({ top: el.getBoundingClientRect().top - innerHeight * .80, behavior: 'instant' }));
+    await lens.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
     await expect(lens.locator('img')).toHaveAttribute('data-ready', 'true');
     const aperture = () => lens.evaluate(el => Number(el.style.getPropertyValue('--aperture') || '1'));
+    await expect(lens).toHaveAttribute('data-playback', 'complete');
     const held = await aperture();
-    expect(held).toBeGreaterThan(.05);
-    expect(held).toBeLessThan(.8);
+    expect(held).toBe(1);
     const clip = await lens.evaluate(el => {
-      const r = el.getBoundingClientRect(), y = Math.ceil(r.top);
+      const r = el.getBoundingClientRect(), y = Math.max(0, Math.ceil(r.top));
       return { x: Math.ceil(r.left), y, width: Math.floor(r.width - 1), height: Math.floor(Math.min(innerHeight, r.bottom) - y) };
     });
     const original = await page.screenshot({ clip });

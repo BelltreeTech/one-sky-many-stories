@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useRef, useState, type CSSProperties } from 'react'
 import { asset } from '../data/edition'
 import '../styles/cinema.css'
 
@@ -31,28 +31,13 @@ export function warmEstablishingShot(id: number) {
 export function CinematicShot({ id, source }: { id: number; source: string }) {
   const [arrival, setArrival] = useState<'pending'|'ready'|'late'>('pending')
   const entered = useRef(performance.now())
-  const exposure = useRef<HTMLSpanElement>(null)
-  useEffect(() => {
-    if (arrival !== 'late' || id === 1 || id === 20) return
-    // A slow download must not replace a face while a reader is studying it.
-    // Join the new exposure progressively on the next natural stroke.
-    const start = window.scrollY
-    const element = exposure.current!
-    const advance = () => {
-      const alpha = Math.min(1, Math.abs(window.scrollY - start) / 88)
-      element.style.setProperty('--loaded-mix', String(alpha))
-      if (alpha === 1) window.removeEventListener('scroll', advance)
-    }
-    window.addEventListener('scroll', advance, { passive: true })
-    return () => window.removeEventListener('scroll', advance)
-  }, [arrival,id])
   const shot = shots[id]
   if (!shot) return null
   const type = id === 1 ? 'prologue' : id === 20 ? 'epilogue' : shot.file ? 'establish' : 'insert'
   return <span className={'film-shot shot-'+type} data-film-shot={shot.file ?? 'detail'} data-ready={arrival !== 'pending'} data-arrival={arrival}
     style={{ '--shot-focus': shot.focus, '--shot-zoom': shot.scale - 1, '--shot-roll': (shot.angle ?? 0)+'deg' } as CSSProperties}
     aria-hidden="true">
-    <span ref={exposure} className="film-exposure"><img className="film-frame" alt="" decoding="async"
+    <span className="film-exposure"><img className="film-frame" alt="" decoding="async"
       src={shot.file ? asset('cinema/'+shot.file+'.webp') : source} onLoad={event=>{
         const image = event.currentTarget
         void image.decode().then(() => {

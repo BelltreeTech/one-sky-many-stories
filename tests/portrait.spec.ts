@@ -140,69 +140,12 @@ test.describe('portrait discoveries', () => {
     await expect.poll(() => passageReadable(question)).toBe(true);
     expect(await passageReadable(reply)).toBe(false);
     await scene.locator('.portrait-stage').evaluate(art => art.scrollIntoView({ block: 'center', behavior: 'instant' }));
-    const rest = await scene.evaluate(async el => {
-      const camera = el.querySelector('.camera')!;
-      const wind = el.querySelector<HTMLElement>('.afterglow')!;
-      const edges = [...wind.querySelectorAll('i')];
-      const frame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-      const amplitude = () => Math.max(0, ...edges.map(edge => {
-        const matrix = new DOMMatrixReadOnly(getComputedStyle(edge).transform);
-        return Math.hypot(matrix.m41, matrix.m42);
-      }));
-      const cameraPosition = () => {
-        const m = new DOMMatrixReadOnly(getComputedStyle(camera).transform);
-        return [m.m41, m.m42, m.a * innerWidth, m.d * innerHeight];
-      };
-      // Keep the finger moving over multiple paints. A single 35px jump can
-      // begin and end between two WebKit paints on a headless Linux runner.
-      await frame();
-      await frame();
-      const initialY = scrollY;
-      let travelled = 0, peak = 0, moving = false;
-      const interval = setInterval(() => {
-        window.scrollBy({ top: 2, behavior: 'instant' });
-        travelled += 2;
-      }, 20);
-      try {
-        const until = performance.now() + 650;
-        while (performance.now() < until) {
-          await frame();
-          moving ||= wind.dataset.wind === 'up';
-          peak = Math.max(peak, amplitude());
-        }
-      } finally {
-        clearInterval(interval);
-      }
-      const stopY = scrollY;
-      const releasedAt = performance.now();
-      // Native scrolling may deliver its last ScrollTrigger update after the
-      // test callback. Observe the actual rest state before measuring the fixed camera.
-      let quietSince = performance.now(), priorCamera = getComputedStyle(camera).transform;
-      do {
-        await frame();
-        const pose = getComputedStyle(camera).transform;
-        if (wind.dataset.wind !== 'still' || amplitude() >= .01 || pose !== priorCamera) quietSince = performance.now();
-        priorCamera = pose;
-      } while (performance.now() - quietSince < 120 && performance.now() - releasedAt < 5000);
-      const settledAfter = performance.now() - releasedAt;
-      const start = cameraPosition();
-      const until = performance.now() + 420;
-      let cameraDrift = 0;
-      while (performance.now() < until) {
-        await frame();
-        const now = cameraPosition();
-        cameraDrift = Math.max(cameraDrift, ...now.map((v, i) => Math.abs(v - start[i])));
-      }
-      return { peak, moving, settledAfter, last: amplitude(), wind: wind.dataset.wind, cameraDrift, initialY, travelled, stopY, endY: scrollY };
-    });
-    await test.info().attach('native-scroll-and-settle.json', { body: JSON.stringify(rest), contentType: 'application/json' });
-    expect(rest.moving, 'The scroll activated the secondary movement – ' + JSON.stringify(rest)).toBe(true);
-    expect(rest.peak, 'Clouds, hair or sleeves visibly moved').toBeGreaterThan(0.02);
-    expect(rest.wind).toBe('still');
-    expect(rest.last, 'The residual movement settles completely').toBeLessThan(0.01);
-    expect(rest.cameraDrift, 'Camera drift once scrolling ended (CSS pixels)').toBeLessThan(0.1);
-    expect(rest.stopY).toBe(rest.initialY + rest.travelled);
-    expect(rest.endY).toBe(rest.stopY);
+    const stage = scene.locator('.portrait-stage');
+    const parked = await page.evaluate(() => scrollY);
+    await expect(stage).toHaveAttribute('data-playback', 'complete');
+    expect(await page.evaluate(() => scrollY)).toBe(parked);
+    await expect(scene.locator('.afterglow')).toHaveAttribute('data-wind', 'still');
+    expect(await scene.locator('.drifting-cloud').evaluate(el => new DOMMatrixReadOnly(getComputedStyle(el).transform).m41)).toBe(0);
 
     await readAt(question);
     expect(await page.evaluate(() => scrollY)).toBe(whereAsked);
@@ -213,56 +156,46 @@ test.describe('portrait discoveries', () => {
     await expect(page.locator('canvas[data-running]')).toHaveAttribute('data-running', 'false');
   });
 
-  test('the painted motion of a released sleeve or cloud tapers after native scrolling stops', async ({ page }) => {
-    // Install the controllable clock before loading this independent page. The
-    // ordinary gesture test is allowed to paint with a completely native clock.
-    await page.clock.install();
+  test('the sisters come to rest before the hair, sleeves and cloud at a fixed reading position', async ({ page }) => {
+    // Sample the release beat at known film times. A loaded CI compositor can
+    // legitimately present only two real frames during this short interval.
+    await page.clock.install({ time: new Date('2025-02-01T00:00:00Z') });
+    await page.clock.pauseAt(new Date('2025-02-01T00:10:00Z'));
     await openBook(page);
-    const scene = await visitScene(page, 11);
-    await scene.locator('.portrait-stage').evaluate(stage => stage.scrollIntoView({ block: 'center', behavior: 'instant' }));
-    await scene.locator('.scene-image').evaluate(async (image: HTMLImageElement) => { await image.decode(); });
-    await expect(scene.locator('.camera')).not.toHaveCSS('transform', 'none');
-    await expect(scene.locator('.afterglow')).toBeVisible();
-    // On a loaded runner, multiple real-world frames can pass before the test
-    // gets a turn. Deliver one final scroll, then advance actual app callbacks
-    // in 64 ms steps without another input. Read the painted edge transforms.
-    await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now() + 2000)));
-    const impulse = await scene.evaluate(el => {
-      const from = scrollY;
-      scrollBy({ top: 96, behavior: 'instant' });
-      // WebKitGTK can hold the platform scroll event until its next real
-      // compositor frame. Deliver the document notification at this clock tick
-      // after moving the real viewport. The separate input test uses native events alone.
-      document.dispatchEvent(new Event('scroll', { bubbles: true }));
-      const stage = el.querySelector('.portrait-stage')!.getBoundingClientRect();
-      return { delta: scrollY - from, stageTop: stage.top, stageBottom: stage.bottom, frame: innerHeight,
-        wind: el.querySelector<HTMLElement>('.afterglow')!.dataset.wind };
-    });
-    expect(impulse.delta).toBe(96);
-    expect(impulse.stageTop).toBeLessThan(impulse.frame);
-    expect(impulse.stageBottom).toBeGreaterThan(0);
-    const sample = () => scene.evaluate(el => {
-      const edge = el.querySelector('.drifting-cloud')!;
-      return { y: scrollY, time: performance.now(), wind: el.querySelector<HTMLElement>('.afterglow')!.dataset.wind,
-        camera: getComputedStyle(el.querySelector('.camera')!).transform, offset: Math.abs(new DOMMatrixReadOnly(getComputedStyle(edge).transform).m41) };
-    });
-    let pulse = await sample();
-    for (let i = 0; i < 8 && pulse.offset < .5; i++) {
+    const stage = sceneAt(page, 11).locator('.portrait-stage');
+    await stage.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await expect.poll(async () => {
       await page.clock.runFor(16);
-      pulse = await sample();
-    }
-    expect(pulse.offset, 'A full fingertip stroke moves the cloud visibly – ' + JSON.stringify({ impulse, pulse })).toBeGreaterThan(.5);
+      return stage.getAttribute('data-playback');
+    }).toBe('playing');
     const samples = [];
-    for (let i = 0; i < 16; i++) {
-      await page.clock.runFor(64);
-      samples.push(await sample());
+    for (let i = 0; i < 46; i++) {
+      await page.clock.runFor(120);
+      const sample = await stage.evaluate(art => ({
+        state: art.dataset.playback, y: scrollY,
+        camera: getComputedStyle(art.querySelector('.camera')!).transform,
+        landed: Number(art.style.getPropertyValue('--cinematic-progress')) === 1,
+        offsets: [...art.querySelectorAll('.afterglow i')].map(edge => {
+          const m = new DOMMatrixReadOnly(getComputedStyle(edge).transform);
+          return Math.hypot(m.m41, m.m42);
+        }),
+      }));
+      samples.push(sample);
+      if (sample.state === 'complete') break;
     }
-    const timeline = JSON.stringify({ pulse, samples });
-    await test.info().attach('stopped-motion-frames.json', { body: timeline, contentType: 'application/json' });
-    expect(samples.every(p => p.y === pulse.y && p.camera === pulse.camera), 'Stationary camera – ' + timeline).toBe(true);
-    expect(samples.some(p => p.offset > .01 && p.offset < pulse.offset - .01),
-      'A painted edge continues through an intermediate position after the camera stops – ' + timeline).toBe(true);
-    expect(samples.at(-1)!.offset).toBeLessThan(.01);
+    expect(samples.at(-1)?.state).toBe('complete');
+    expect(new Set(samples.map(sample => sample.y)).size).toBe(1);
+    expect(new Set(samples.map(sample => sample.camera)).size).toBeGreaterThan(3);
+    const tail = samples.filter(sample => sample.landed);
+    expect(tail.length).toBeGreaterThan(2);
+    expect(new Set(tail.map(sample => sample.camera)).size).toBe(1);
+    for (const edge of [0, 1, 2]) {
+      const peak = Math.max(...samples.map(sample => sample.offsets[edge]));
+      expect(peak).toBeGreaterThan(.5);
+      expect(tail.some(s => s.offsets[edge] > .01 && s.offsets[edge] < peak - .01)).toBe(true);
+      expect(tail.at(-1)!.offsets[edge]).toBeLessThan(.01);
+    }
+    await test.info().attach('sisters-settling-at-fixed-y.json', { body: JSON.stringify(tail), contentType: 'application/json' });
   });
 
   test('both telescope views form successive, reversible panels in the document', async ({ page }) => {
@@ -336,7 +269,7 @@ test.describe('portrait discoveries', () => {
     }
   });
 
-  test('the memory and the mythical ridge dissolve on the same painting as the reader scrolls', async ({ page }, info) => {
+  test('the memory and the mythical ridge dissolve on the same painting after the reader releases the screen', async ({ page }, info) => {
     await openBook(page);
     for (const [id, selector] of [[4, '.memory-sky'], [10, '.ridge-bridge']] as const) {
       const scene = await visitScene(page, id);
@@ -350,32 +283,29 @@ test.describe('portrait discoveries', () => {
         return { opacity: Number(getComputedStyle(img).opacity), y: scrollY,
           registration: Math.max(...(['top', 'bottom', 'left', 'right'] as const).map(side => Math.abs(base[side] - painted[side]))) };
       });
-      // Set the top of the drawing at a known distance from the window top.
-      // The effect must be recoverable from position in either direction.
-      const seek = async (top: number) => {
-        await scene.locator('.portrait-stage').evaluate(async (stage, top) => {
-          scrollBy({ top: stage.getBoundingClientRect().top - innerHeight * top, behavior: 'instant' });
-          await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-        }, top);
-        return pose();
-      };
-      const entry = await seek(.8), middle = await seek(.27);
+      const stage = scene.locator('.portrait-stage');
+      // Leave first, then sample a fresh visit from partial exposure through
+      // the middle of the dissolve to its fully registered final painting.
+      await page.locator('#scene-01').evaluate(el => el.scrollIntoView());
+      await expect(stage).not.toHaveAttribute('data-playback', /.+/);
+      await stage.evaluate(el => scrollBy({ top: el.getBoundingClientRect().top - innerHeight * .88, behavior: 'instant' }));
+      await expect(stage).toHaveAttribute('data-playback', 'waiting');
+      await expect(exposure).toHaveAttribute('data-ready', 'true');
+      const entry = await pose();
       expect(entry.opacity).toBeGreaterThan(.95);
-      expect(middle.opacity).toBeGreaterThan(.05);
-      expect(middle.opacity).toBeLessThan(.95);
-      expect(middle.y).toBeGreaterThan(entry.y);
-      await page.waitForTimeout(180);
-      expect(await pose()).toEqual(middle);
+      await stage.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+      await expect.poll(() => pose().then(p => p.opacity), { intervals: [40] }).toBeLessThan(.75);
+      const middle = await pose();
+      expect(middle.opacity).toBeGreaterThan(.12);
       if (info.project.name === 'iphone-webkit') await captureFrame(page, 'iphone-' + String(id).padStart(2, '0') + '-dissolve');
-      if (id === 4) await checkMemoryMask(page, original);
-      const finished = await seek(-.05);
+      await expect(stage).toHaveAttribute('data-playback', 'complete');
+      const finished = await pose();
       expect(finished.opacity).toBeLessThan(.05);
-      expect(await seek(.27)).toEqual(middle);
-      const back = await seek(.8);
-      expect(back).toEqual(entry);
-      for (const point of [entry, middle, finished, back]) expect(point.registration).toBeLessThan(1);
+      expect(finished.y).toBe(middle.y);
+      if (id === 4) await checkMemoryMask(page, original);
+      for (const point of [entry, middle, finished]) expect(point.registration).toBeLessThan(1);
       await page.emulateMedia({ reducedMotion: 'reduce' });
-      for (const top of [.8, .27, -.05]) expect((await seek(top)).opacity).toBe(0);
+      expect((await pose()).opacity).toBe(0);
       expect(await original.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
       expect(await scene.locator('.passage').textContent()).toBe(oracle.scenes[id - 1].text);
       await page.emulateMedia({ reducedMotion: 'no-preference' });
