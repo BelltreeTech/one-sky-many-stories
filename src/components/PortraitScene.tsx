@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { asset, chapters, type Scene } from '../data/edition'
 import { ParticleEngine } from '../engine/ParticleEngine'
-import { attachPortraitTimeline } from '../engine/portraitTimeline'
+import { attachPortraitTimeline, attachTelescopeAperture } from '../engine/portraitTimeline'
 import { IllustrationMotion } from './IllustrationMotion'
 import { portraitBeats } from '../engine/typographyReveal'
 import { portraitDimensions, portraitDirections, portraitFile } from '../data/portrait'
@@ -79,15 +79,17 @@ export function PortraitScene({ scene, near, animate, current }: { scene: Scene;
   const bothFailed = fallback && unavailableAt === attempt
   const src = imageURL(filename, fallback && unavailableAt < 0 ? 0 : attempt)
   const stage = useRef<HTMLSpanElement>(null)
-  // The separate telescope can decode first. Its aperture already follows the
-  // reading position while the main illustration is still loading.
-  const positionCamera = animate && near && !fallback
-  const animateDetails = positionCamera && loadedSource === src
+  const lens = useRef<HTMLSpanElement>(null)
+  const followsScroll = animate && near
+  const animateFullArt = followsScroll && !fallback && loadedSource === src
   useLayoutEffect(() => {
-    if (!positionCamera) return
+    if (followsScroll && lens.current) return attachTelescopeAperture(lens.current)
+  }, [followsScroll])
+  useLayoutEffect(() => {
+    if (!animateFullArt) return
     const section = stage.current!.closest<HTMLElement>('[data-scene]')!
     return attachPortraitTimeline(section, scene.id, true)
-  }, [positionCamera, scene.id])
+  }, [animateFullArt, scene.id])
   const chapter = chapters[scene.chapter - 1]
   const opener = (scene.id - 1) % 4 === 0
   const first = scene.id === 1
@@ -106,7 +108,7 @@ export function PortraitScene({ scene, near, animate, current }: { scene: Scene;
             if (fallback) setUnavailableAt(attempt)
             else markFailed()
           }} />
-        {animateDetails && <IllustrationMotion id={scene.id} source={src} />}
+        {animateFullArt && <IllustrationMotion id={scene.id} source={src} />}
         {scene.id === 4 && !fallback && <DecodedExposure file="before-memory" className="registered-exposure memory-sky" near={near} />}
         {scene.id === 10 && !fallback && <DecodedExposure file="ridge" className="registered-exposure ridge-bridge" near={near} />}
         {scene.id === 11 && <span className="afterglow" data-wind="still" hidden={!near || fallback}
@@ -115,7 +117,7 @@ export function PortraitScene({ scene, near, animate, current }: { scene: Scene;
         </span>}
       </span>
     </span>
-    {current && <ParticleEngine running={animateDetails && ![7, 8, 11, 12, 14, 15].includes(scene.id)} />}
+    {current && <ParticleEngine running={animateFullArt && ![7, 8, 11, 12, 14, 15].includes(scene.id)} />}
   </span>
 
   return <div className={'portrait-story' + (asksBeforeArt ? ' quest' : '')}>
@@ -127,7 +129,7 @@ export function PortraitScene({ scene, near, animate, current }: { scene: Scene;
     <p className="passage portrait-passage">{portraitBeats(scene).map((part, index) =>
       <span className="reading-beat" data-beat={index + 1} key={index}>
         {!index && !asksBeforeArt && art}
-        {scene.id === 8 && index === 1 && <span className="lens-field">
+        {scene.id === 8 && index === 1 && <span ref={lens} className="lens-field">
           <DecodedExposure file="telescope" className="telescope-view" near={near}
             alt="Through the eyepiece, a few bright stars stand out among many fainter points of light." />
         </span>}

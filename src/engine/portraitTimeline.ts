@@ -3,6 +3,22 @@ import { portraitDirections } from '../data/portrait'
 import { positionPainting } from './illustrationMotion'
 import { between } from './sceneTransition'
 
+// The telescope is a separate image with its own loading and retry lifecycle.
+export function attachTelescopeAperture(lens: HTMLElement) {
+  const update = () => {
+    const reveal = between(1 - lens.getBoundingClientRect().top / window.innerHeight, .01, .58)
+    lens.style.setProperty('--aperture', String(reveal))
+  }
+  const trigger = ScrollTrigger.create({
+    trigger: lens, start: 'top bottom', end: 'bottom top', onUpdate: update, onRefresh: update,
+  })
+  update()
+  return () => {
+    trigger.kill()
+    lens.style.removeProperty('--aperture')
+  }
+}
+
 // The artwork and narration already travel together in document flow. These
 // local effects only follow the reader through the illustration's own frame.
 export function attachPortraitTimeline(scene: HTMLElement, id: number, motion: boolean) {
@@ -10,7 +26,6 @@ export function attachPortraitTimeline(scene: HTMLElement, id: number, motion: b
   const camera = scene.querySelector<HTMLElement>('.camera')!
   const stage = scene.querySelector<HTMLElement>('.portrait-stage')!
   const direction = portraitDirections[id]
-  const lens = scene.querySelector<HTMLElement>('.lens-field')
   const wind = scene.querySelector<HTMLElement>('.afterglow')
   let priorY = window.scrollY
   let gustFrame = 0
@@ -37,9 +52,7 @@ export function attachPortraitTimeline(scene: HTMLElement, id: number, motion: b
     const progress = between(frame - bounds.top, 0, bounds.height + frame)
     let scale = direction.start + (direction.end - direction.start) * progress
     const dy = direction.rise * (progress - .5) * 100
-    if (lens) {
-      const reveal = between(1 - lens.getBoundingClientRect().top / frame, .01, .58)
-      lens.style.setProperty('--aperture', String(reveal))
+    if (id === 8) {
       // The hillside stays where it was drawn while the optical field below
       // it comes into view. A modest push follows the eye to the eyepiece.
       scale += .048 * between(progress, .3, .82)
@@ -84,7 +97,6 @@ export function attachPortraitTimeline(scene: HTMLElement, id: number, motion: b
       wind.style.removeProperty('--gust')
     }
     scene.style.removeProperty('--background-exposure')
-    lens?.style.removeProperty('--aperture')
     camera.style.removeProperty('opacity')
     camera.style.removeProperty('transform')
   }
