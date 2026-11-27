@@ -37,12 +37,30 @@ test('a changing Safari toolbar leaves a native page scroll in control', async (
             viewport.dispatchEvent(new Event('resize'));
           }, delay);
         }
-        // Include the resize debounce and the end of the native key scroll.
-        setTimeout(() => {
+        // A busy WebKit runner can still be coasting at 550 ms. Wait for the
+        // browser's last scroll event plus the toolbar debounce before reading
+        // the final distance; retain the top-write observer throughout.
+        const began = performance.now();
+        let lastScroll = began;
+        const reportsEnd = 'onscrollend' in document;
+        let ended = !reportsEnd;
+        const moved = () => { lastScroll = performance.now(); ended = !reportsEnd; };
+        const finished = () => { ended = true; };
+        document.addEventListener('scrollend', finished);
+        window.addEventListener('scroll', moved, { passive: true });
+        function sampleRest() {
+          const now = performance.now();
+          if (!ended || now - lastScroll < 220 || now - began < 550) {
+            requestAnimationFrame(sampleRest);
+            return;
+          }
+          window.removeEventListener('scroll', moved);
+          document.removeEventListener('scrollend', finished);
           Reflect.deleteProperty(viewport, 'height');
           window.scrollTo = originalScrollTo;
           document.documentElement.dataset.inertiaResult = JSON.stringify({ start, end: scrollY, height: innerHeight, topWrites });
-        }, 550);
+        }
+        requestAnimationFrame(sampleRest);
       }, { once: true, passive: true });
     }, { once: true });
   });
