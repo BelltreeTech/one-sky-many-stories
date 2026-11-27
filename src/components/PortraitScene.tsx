@@ -1,5 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { asset, chapters, type Scene } from '../data/edition'
+import { ParticleEngine } from '../engine/ParticleEngine'
+import { attachPortraitTimeline, attachTelescopeAperture } from '../engine/portraitTimeline'
+import { CinematicShot, SceneWeather, warmEstablishingShot } from './CinematicShot'
+import { MythMotion } from './MythMotion'
+import { MatarikiMotion } from './MatarikiMotion'
+import { HillsideMotion, OpeningMeteor } from './HillsideMotion'
+import { IllustrationMotion } from './IllustrationMotion'
 import { portraitBeats } from '../engine/typographyReveal'
 import { portraitDimensions, portraitDirections, portraitFile } from '../data/portrait'
 
@@ -65,7 +72,9 @@ function DecodedExposure({ file, className, near, alt = '' }: {
     alt={alt} aria-hidden={alt ? undefined : true} src={near && !failed ? url : undefined} decoding="async" />
 }
 
-export function PortraitScene({ scene, near }: { scene: Scene; near: boolean }) {
+export function PortraitScene({ scene, near, animate, current }: { scene: Scene; near: boolean; animate: boolean; current: boolean }) {
+  const [loadedSource, setLoadedSource] = useState('')
+  useEffect(() => { if (!near) setLoadedSource('') }, [near])
   const [unavailableAt, setUnavailableAt] = useState(-1)
   const { attempt, failed: fallback, markFailed } = useImageRecovery(near, unavailableAt)
   const [width, height] = portraitDimensions(scene.id)
@@ -73,31 +82,57 @@ export function PortraitScene({ scene, near }: { scene: Scene; near: boolean }) 
   const filename = portraitFile(scene.id, fallback)
   const bothFailed = fallback && unavailableAt === attempt
   const src = imageURL(filename, fallback && unavailableAt < 0 ? 0 : attempt)
+  const stage = useRef<HTMLSpanElement>(null)
+  const lens = useRef<HTMLSpanElement>(null)
+  const followsScroll = animate && near
+  const animateFullArt = followsScroll && !fallback && loadedSource === src
+  useEffect(() => {
+    if (near && !animate && !fallback && loadedSource === src) warmEstablishingShot(scene.id)
+  }, [near, animate, fallback, loadedSource, src, scene.id])
+  useLayoutEffect(() => {
+    if (followsScroll && lens.current) return attachTelescopeAperture(lens.current)
+  }, [followsScroll])
+  useLayoutEffect(() => {
+    if (!animateFullArt) return
+    const section = stage.current!.closest<HTMLElement>('[data-scene]')!
+    return attachPortraitTimeline(section, scene.id, true)
+  }, [animateFullArt, scene.id])
   const chapter = chapters[scene.chapter - 1]
   const opener = (scene.id - 1) % 4 === 0
   const first = scene.id === 1
   const asksBeforeArt = scene.id === 7 || scene.id === 11
   const alt = portraitDescriptions[scene.id] ?? scene.alt
-  const art = <span className="portrait-stage" style={{
+  const art = <span ref={stage} className="portrait-stage" style={{
     '--portrait-ratio': width / height, '--focus': direction.focus,
   } as CSSProperties}>
     <span className="portrait-camera camera">
       <span className="portrait-sheet">
         <img className="scene-image" src={near && !bothFailed ? src : undefined} width={width} height={height} alt={alt}
           data-fallback={fallback} decoding="async" fetchPriority={first ? 'high' : 'auto'}
+          onLoad={event => { if (event.currentTarget.naturalWidth) setLoadedSource(src) }}
           onError={() => {
             if (!near) return
             if (fallback) setUnavailableAt(attempt)
             else markFailed()
           }} />
+        {animateFullArt && <IllustrationMotion id={scene.id} source={src} />}
         {scene.id === 4 && !fallback && <DecodedExposure file="before-memory" className="registered-exposure memory-sky" near={near} />}
         {scene.id === 10 && !fallback && <DecodedExposure file="ridge" className="registered-exposure ridge-bridge" near={near} />}
         {scene.id === 11 && <span className="afterglow" data-wind="still" hidden={!near || fallback}
           style={{ '--plate': near && !fallback ? 'url(' + src + ')' : undefined } as CSSProperties} aria-hidden="true">
           <i className="drifting-cloud" /><i className="sleeve-tip" /><i className="hair-tip" />
         </span>}
+        {animateFullArt && <span className="cinematic-art" aria-hidden="true">
+          {scene.id <= 8 && <HillsideMotion id={scene.id} />}
+          {scene.id >= 9 && scene.id <= 12 && <MythMotion id={scene.id} />}
+          {scene.id >= 13 && <MatarikiMotion id={scene.id} />}
+          <SceneWeather id={scene.id} />
+          <CinematicShot id={scene.id} source={src} />
+          {first && <OpeningMeteor />}
+        </span>}
       </span>
     </span>
+    {current && <ParticleEngine running={animateFullArt && ![7, 8, 11, 12, 14, 15].includes(scene.id)} />}
   </span>
 
   return <div className={'portrait-story' + (asksBeforeArt ? ' quest' : '')}>
@@ -109,7 +144,7 @@ export function PortraitScene({ scene, near }: { scene: Scene; near: boolean }) 
     <p className="passage portrait-passage">{portraitBeats(scene).map((part, index) =>
       <span className="reading-beat" data-beat={index + 1} key={index}>
         {!index && !asksBeforeArt && art}
-        {scene.id === 8 && index === 1 && <span className="lens-field">
+        {scene.id === 8 && index === 1 && <span ref={lens} className="lens-field">
           <DecodedExposure file="telescope" className="telescope-view" near={near}
             alt="Through the eyepiece, a few bright stars stand out among many fainter points of light." />
         </span>}

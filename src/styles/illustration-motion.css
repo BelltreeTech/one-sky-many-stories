@@ -1,0 +1,19 @@
+.illustration-details { position: absolute; inset: 0; display: block; pointer-events: none; }
+.illustration-details [data-painted-detail], .illustration-details [data-painted-detail] > i {
+  display: block; position: absolute; pointer-events: none;
+}
+.illustration-details .detail-ink {
+  overflow: hidden;
+  mask-image: radial-gradient(ellipse 50% 50% at center, #000 56%, rgba(0,0,0,.9) 68%, transparent 100%);
+}
+.detail-ink > i { background-repeat: no-repeat; }
+.detail-light > i { inset: 0; opacity: 0; background: radial-gradient(ellipse closest-side, var(--tint), transparent); }
+.detail-petal > i { inset: 0; opacity: 0; }
+.detail-petal b {
+  position: absolute; top: 0; left: 32%; width: 15%; aspect-ratio: 1.6;
+  border-radius: 85% 15% 80% 18%;
+  background: linear-gradient(135deg,#fff0db 5%,var(--tint) 55%,#b97796);
+}
+@media (prefers-reduced-motion: reduce) {
+  .illustration-details { display: none; }
+}

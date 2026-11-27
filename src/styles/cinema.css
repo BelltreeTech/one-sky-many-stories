@@ -1,0 +1,75 @@
+/* All optical travel happens inside the illustration. Its complete primary
+   plate keeps its own dimensions, independent of the close or distant shot. */
+.film-shot, .film-exposure, .film-frame, .scene-weather, .passing-light {
+  position: absolute; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none;
+}
+.film-shot, .scene-weather { --cue: var(--cinematic-progress,0); overflow: clip; }
+.film-shot { visibility: hidden; }
+.film-shot[data-ready="true"] { visibility: visible; }
+.film-shot[data-arrival="late"]:is(.shot-insert,.shot-establish) .film-exposure { opacity: var(--loaded-mix,0); }
+.shot-epilogue[data-arrival="late"] .film-exposure { animation: valley-arrives .65s ease-out both; }
+@keyframes valley-arrives { from { opacity: 0; } to { opacity: 1; } }
+.film-frame {
+  object-fit: cover; transform-origin: var(--shot-focus);
+  transform: scale(calc(1 + (1 - var(--cue)) * var(--shot-zoom))) rotate(calc((1 - var(--cue)) * var(--shot-roll)));
+}
+.shot-establish {
+  --gate: clamp(0,calc((var(--cue) - .14) * 2.18),1);
+  mask-image: radial-gradient(ellipse farthest-corner at var(--shot-focus),
+    transparent calc(-23% + var(--gate) * 150%),
+    #000 calc(-1% + var(--gate) * 150%));
+}
+.shot-establish .film-frame {
+  transform: scale(calc(1.025 + var(--cue) * var(--shot-zoom) * 2));
+}
+.shot-insert { opacity: clamp(0,calc((.485 - var(--cue)) * 5.65),1); }
+/* Cut-ins share the same source pixels. The zoom meets the wide painting
+   before the optical dissolve so a face never remains doubled in the frame. */
+.shot-insert .film-frame {
+  --remaining: clamp(0,calc(1 - var(--cue) * 3.85),1);
+  transform: scale(calc(1 + var(--remaining) * var(--shot-zoom))) rotate(calc(var(--remaining) * var(--shot-roll)));
+}
+.shot-prologue { opacity: clamp(0,calc(1.12 - var(--cue) * 1.65),1); }
+.shot-prologue[data-ready="true"] .film-exposure {
+  animation: prologue-dissolve 4.8s cubic-bezier(.32,0,.54,1) both;
+}
+.shot-prologue[data-ready="true"] .film-frame {
+  animation: approach-the-hill 4.8s cubic-bezier(.12,.46,.39,1) both; transform-origin: 27% 70%;
+}
+@keyframes prologue-dissolve {
+  0% { opacity: 0; } 9%,59% { opacity: 1; } 100% { opacity: 0; visibility: hidden; }
+}
+@keyframes approach-the-hill {
+  from { transform: scale(1.47) translateY(2.8%); }
+  to { transform: scale(1.025) translateY(0); }
+}
+.shot-epilogue {
+  --gate: clamp(0,calc((var(--cue) - .41) * 1.9),1);
+  mask-image: linear-gradient(166deg, #000 calc(-25% + var(--gate) * 155%),
+    transparent calc(-1% + var(--gate) * 155%));
+}
+.shot-epilogue .film-frame {
+  transform: scale(calc(1.03 + (1 - var(--cue)) * .74));
+}
+.scene-weather { --horizon: #8d91ea; --shadow: #101b52; }
+.weather-amber { --horizon: #ffc88c; --shadow: #292248; }
+.cloud-plane, .cloud-plane i {
+  position: absolute; display: block; pointer-events: none;
+}
+.cloud-plane { left: 0; width: 100%; }
+.cloud-plane i {
+  inset: -24% -14%; background: var(--cloud-paint) center / 100% 100% no-repeat;
+  opacity: calc(.78 - var(--cue) * .53);
+  transform: translate3d(calc((-32% + var(--cue) * 69%) * var(--wind-side)),calc(12% - var(--cue) * 22%),0);
+}
+.passing-light {
+  opacity: calc(.63 - var(--cue) * .50);
+  background: linear-gradient(135deg, var(--shadow),transparent 44%,transparent 57%,color-mix(in srgb,var(--horizon) 46%,transparent) 86%,transparent);
+  transform: translateX(calc(-12% + var(--cue) * 24%)) scaleX(1.38);
+}
+[data-scene="7"] .passing-light { background: linear-gradient(0deg,#4e5488a0,transparent 63%); }
+[data-scene="6"] .passing-light, [data-scene="17"] .passing-light {
+  background: linear-gradient(117deg,#352c4b90 6%,transparent 29%,#ffc78c65 47%,transparent 64%);
+}
+[data-scene="11"] .cloud-plane i { opacity: calc(.58 - var(--cue) * .38); }
+@media (prefers-reduced-motion:reduce) { .film-shot, .scene-weather { display:none; } }

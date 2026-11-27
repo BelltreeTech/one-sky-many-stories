@@ -1,0 +1,14 @@
+/* The registered crop of Leo's hands starts at (494, 765) in the 1051 × 1496 plate. */
+.leo-book {
+  display: block;
+  position: absolute;
+  left: calc(100% * 494 / 1051);
+  top: calc(100% * 765 / 1496);
+  width: calc(100% * 215 / 1051);
+  height: calc(100% * 206 / 1496);
+  pointer-events: none;
+}
+.leo-book canvas { display: block; width: 100%; height: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  .leo-book { display: none; }
+}

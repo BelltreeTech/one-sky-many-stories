@@ -74,10 +74,23 @@ for (const [index, shape] of ['reference viewport', 'landscape viewport', 'resiz
     await captureFrame(page, 'scene-05-' + width + 'x' + height);
     const geometry = () => fifth.evaluate(el => ({ y: scrollY, art: el.querySelector('.portrait-stage')!.getBoundingClientRect().top,
       text: el.querySelector('.beat-text')!.getBoundingClientRect().top }));
+    // A WebKit PageDown spans several frames. Even scrollend can be emitted
+    // per frame on iPad, so sample a resting offset before reversing direction.
+    const waitForRest = () => page.evaluate(async () => {
+      let previous = scrollY;
+      let stillFrames = 0;
+      while (stillFrames < 4) {
+        await new Promise(requestAnimationFrame);
+        const current = scrollY;
+        stillFrames = current === previous ? stillFrames + 1 : 0;
+        previous = current;
+      }
+    });
     const initial = await geometry();
     if (browserName === 'chromium') await page.mouse.wheel(0, 128);
     else await page.keyboard.press('PageDown');
     await expect.poll(async () => (await geometry()).y).toBeGreaterThan(initial.y + 8);
+    await waitForRest();
     const advanced = await geometry();
     for (const field of ['art', 'text'] as const) {
       expect(Math.abs((initial[field] - advanced[field]) - (advanced.y - initial.y))).toBeLessThan(2);
@@ -85,6 +98,7 @@ for (const [index, shape] of ['reference viewport', 'landscape viewport', 'resiz
     if (browserName === 'chromium') await page.mouse.wheel(0, -128);
     else await page.keyboard.press('PageUp');
     await expect.poll(async () => (await geometry()).y).toBeLessThan(advanced.y - 8);
+    await waitForRest();
     // A shallow landscape window may show only part of a paragraph. Both
     // ends must be accessible by vertical scrolling at the default text size.
     const textEnds = await fifth.locator('.beat-text').evaluate(el => {
@@ -121,6 +135,9 @@ test('all twenty small previews keep the composition, description and text of th
     const image = scene.locator('.scene-image');
     await expect(image).toHaveAttribute('data-fallback', 'true');
     await expect(image).toHaveAttribute('src', deployPath + 'portrait/preview/' + name);
+    await expect(scene.locator('[data-illustration-motion]')).toHaveCount(0);
+    await expect(scene.locator('.camera')).toHaveCSS('transform', 'none');
+    await expect(scene.locator('.starlight')).toHaveAttribute('data-running', 'false');
     const full = await readFile('public/portrait/' + name);
     const measured = await image.evaluate(async (small: HTMLImageElement, bytes) => {
       const original = new Image();

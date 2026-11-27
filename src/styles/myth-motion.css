@@ -1,0 +1,109 @@
+/* All movements are registered to the native portrait, independently of the
+   document's position. Reversing the scroll retraces precisely the same pose. */
+.myth-motion {
+  position: absolute; inset: 0; display: block; overflow: clip; pointer-events: none;
+  --reading: var(--cinematic-progress, .5);
+}
+.myth-motion > img, .myth-motion > i { position: absolute; display: block; pointer-events: none; }
+.unwritten-sky {
+  top: calc(100% * 406 / 1672); left: 0; width: 100%; height: calc(100% * 306 / 1672);
+  mask-image: linear-gradient(transparent, #000 19%, #000 85%, transparent);
+  opacity: 0;
+}
+.unwritten-sky[data-ready="true"] { opacity: clamp(0,calc(1.2 - var(--reading) * 1.65),1); }
+.book-opens {
+  --beam: clamp(0,min(calc(var(--reading) * 3.5),calc((1 - var(--reading)) * 2.2)),1);
+}
+.light-from-pages {
+  left: 17%; top: 34%; width: 59%; height: 26%;
+  background: conic-gradient(from -45deg at 49% 100%, transparent 0deg,
+    #ffcab22e 16deg, #ffd79359 26deg, transparent 35deg, #fff2bc55 45deg,
+    transparent 57deg, #ffe2ae51 66deg, transparent 83deg);
+  mask-image: linear-gradient(transparent 0%,#0009 28%,#000 90%,transparent);
+  opacity: var(--beam); transform-origin: 49% 99%;
+  transform: scale(calc(.48 + var(--reading) * .72),calc(.25 + var(--reading) * .85));
+}
+.lit-page-edge {
+  top: 56%; left: 31%; width: 33%; height: 8%;
+  background: radial-gradient(ellipse closest-side,#fff7ceaa,#ffc56e72 47%, transparent);
+  transform: rotate(-6deg) scaleX(calc(.55 + var(--reading) * .55)); opacity: var(--beam);
+}
+
+/* The seven runners gain ground on the distant hunter. Both anchored plates
+   contain the same native portrait coordinates. The hunter keeps his place
+   on the ridge while the seven foreground faces travel with their garments. */
+.registered-pair { visibility: hidden; }
+.registered-pair[data-ready="true"] { visibility: visible; }
+.registered-pair > img { inset: 0; width: 100%; height: 100%; }
+.ridge-wind {
+  --runners-x: calc(-14% + var(--reading) * 14%);
+  --runners-y: calc(4.6% - var(--reading) * 4.6%);
+  --emerge: calc(1 - var(--background-exposure,0));
+}
+.ridge-runners {
+  transform: translate(var(--runners-x), var(--runners-y));
+  mask-image: radial-gradient(ellipse 3.8% 2.65% at 12.45% 33.6%,transparent 96%,#000 100%);
+  opacity: var(--emerge);
+}
+/* This small patch of the very same sprite holds Orion in the distance.
+   The purple-haired runner's hair begins well beyond its right edge. */
+.distant-orion {
+  left: 8%; top: 30%; width: 9%; height: 7%;
+  background-image: var(--runner-paint);
+  background-size: calc(100% / .09) calc(100% / .07);
+  background-position: calc(8% / .91) calc(30% / .93);
+  opacity: var(--emerge);
+}
+.running-dust {
+  --travel: clamp(0,calc((var(--reading) - var(--delay)) * 1.9),1);
+  --light: min(calc(var(--travel) * 4), calc((1 - var(--travel)) * 2.2));
+  width: 5.6%; aspect-ratio: 2.2;
+  left: calc(var(--foot-x) + var(--runners-x) - 15% * var(--travel));
+  top: calc(var(--foot-y) + var(--runners-y) - 5% * var(--travel));
+  background: radial-gradient(ellipse closest-side,#ffe2afab,#f8c79070 42%,transparent);
+  opacity: calc(clamp(0,var(--light),1) * var(--emerge));
+  transform: rotate(-14deg) scale(calc(.26 + var(--travel) * 1.1));
+}
+.running-dust:nth-child(3n) { width: 2.1%; aspect-ratio: 1.55; }
+
+/* When the pair is decoded these are the only visible sisters. The source
+   portrait below remains the accessible image and the complete error fallback. */
+.portrait-sheet:has(.sisters-ascent[data-ready="true"]) {
+  --sisters-rise: calc(9% - var(--cinematic-progress, .5) * 16%);
+}
+.ascent-figures { transform: translateY(var(--sisters-rise)); }
+.portrait-sheet:has(.sisters-ascent[data-ready="true"]) .afterglow { z-index: 1; }
+.portrait-sheet:has(.sisters-ascent[data-ready="true"]) .afterglow .sleeve-tip {
+  translate: 0 var(--sisters-rise);
+  transform: translate(calc(var(--gust) * 4.8px),calc(var(--gust) * -2.3px));
+}
+.portrait-sheet:has(.sisters-ascent[data-ready="true"]) .afterglow .hair-tip {
+  translate: 0 var(--sisters-rise);
+  transform: translateX(calc(var(--gust) * 4.4px));
+}
+.portrait-sheet:has(.sisters-ascent[data-ready="true"]) .afterglow .drifting-cloud {
+  transform: translateX(calc(var(--gust) * 5.4px));
+}
+
+/* The gilt figure is sampled directly from the Pegasus on the closed cover.
+   Its light retraces a short diagonal towards the painted cluster. */
+.book-closes {
+  --glint: clamp(0,calc((var(--reading) - .09) * 1.23),1);
+  --shine: clamp(0,min(calc(var(--glint) * 5),calc((1 - var(--glint)) * 2.5)),1);
+}
+.pegasus-reflection {
+  /* Rise through the gap between Leo and Noah, then turn toward the cluster. */
+  left: calc(58.2% + min(8.7%,var(--glint) * 25%) - max(0%,(var(--glint) - .72) * 7%));
+  top: calc(58% - 38.5% * var(--glint));
+  width: calc(8.4% + 8.4% * var(--glint)); opacity: 0;
+  transform: translate(-50%,-50%) rotate(calc(-4deg - var(--glint) * 12deg));
+  filter: drop-shadow(0 0 3px #ffcc80);
+}
+.pegasus-reflection[data-ready="true"] { opacity: calc(.88 * var(--shine)); }
+.closing-light {
+  left: 44%; top: 48%; width: 26%; height: 11%;
+  transform: rotate(-13deg) scaleX(calc(.4 + var(--glint) * .8));
+  background: radial-gradient(ellipse closest-side,#fff3bf99,#f8c36f57 44%,transparent);
+  opacity: var(--shine);
+}
+@media (prefers-reduced-motion: reduce) { .myth-motion { display: none; } }
