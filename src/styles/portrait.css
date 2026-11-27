@@ -124,7 +124,8 @@
 }
 .telescope-view[data-ready="true"] { opacity: 1; }
 .telescope-view {
-  object-fit: contain;
+  object-fit: contain; transform-origin: 46% 44%;
+  transform: scale(calc(.80 + .20 * var(--aperture,1))) rotate(calc(-3deg + 3deg * var(--aperture,1)));
   mask-image: radial-gradient(circle farthest-corner at 46% 44%,
     black calc(8% + var(--aperture,1) * 100%), transparent calc(17% + var(--aperture,1) * 100%));
 }
