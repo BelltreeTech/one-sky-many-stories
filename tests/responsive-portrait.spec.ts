@@ -136,6 +136,8 @@ test('all twenty small previews keep the composition, description and text of th
     await expect(image).toHaveAttribute('data-fallback', 'true');
     await expect(image).toHaveAttribute('src', deployPath + 'portrait/preview/' + name);
     await expect(scene.locator('[data-illustration-motion]')).toHaveCount(0);
+    await expect(scene.locator('.camera')).toHaveCSS('transform', 'none');
+    await expect(scene.locator('.starlight')).toHaveAttribute('data-running', 'false');
     const full = await readFile('public/portrait/' + name);
     const measured = await image.evaluate(async (small: HTMLImageElement, bytes) => {
       const original = new Image();

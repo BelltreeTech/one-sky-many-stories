@@ -9,6 +9,7 @@ ScrollTrigger.config({ autoRefreshEvents: 'none', ignoreMobileResize: true })
 export function observeSceneLayout(strip: HTMLElement) {
   let frame = 0
   let mounted = true
+  let toolbarSettled: ReturnType<typeof setTimeout> | undefined
   let width = window.innerWidth
   let height = window.innerHeight
 
@@ -22,10 +23,14 @@ export function observeSceneLayout(strip: HTMLElement) {
 
   function measureViewport() {
     const nextHeight = window.innerHeight
-    // The toolbar moves during a touch flick. The illustration already uses
-    // the current viewport on every scroll. Recalculate bounds on real reflow.
+    clearTimeout(toolbarSettled)
+    // The camera already follows a moving touch viewport on every scroll.
+    // Remeasure its resting position once after the toolbar finishes moving.
     if (window.innerWidth === width && ScrollTrigger.isTouch === 1 &&
-      Math.abs(nextHeight - height) < height * .25) return
+      Math.abs(nextHeight - height) < height * .25) {
+      toolbarSettled = setTimeout(queueMeasurements, 120)
+      return
+    }
     width = window.innerWidth
     height = nextHeight
     queueMeasurements()
@@ -39,6 +44,7 @@ export function observeSceneLayout(strip: HTMLElement) {
     mounted = false
     resize.disconnect()
     window.removeEventListener('resize', measureViewport)
+    clearTimeout(toolbarSettled)
     cancelAnimationFrame(frame)
   }
 }

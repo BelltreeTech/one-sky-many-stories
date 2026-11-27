@@ -44,6 +44,42 @@ async function visibleBookPixels(stage: Locator) {
   })
 }
 
+// Observe the first paper-only frame before timing the settle. A slow browser
+// can take several frames to present the closed cover after the native scroll.
+async function closeBookAndSampleLight(stage: Locator, delayedTimestamp = false) {
+  return stage.evaluate(async (node, delayClock) => {
+    const surface = node.querySelector<HTMLCanvasElement>('.leo-book canvas')!
+    const ctx = surface.getContext('2d')!
+    const originalRAF = window.requestAnimationFrame
+    if (delayClock) window.requestAnimationFrame = cb => originalRAF.call(window, stamp => cb(stamp - 2000))
+    const nextPaint = () => new Promise<void>(done => originalRAF.call(window, () => done()))
+    const painted = () => {
+      const pixels = ctx.getImageData(0, 0, surface.width, surface.height).data
+      let count = 0
+      for (let i = 3; i < pixels.length; i += 4) if (pixels[i] > 16) count++
+      return count
+    }
+    try {
+      const rect = node.getBoundingClientRect()
+      window.scrollBy({ top: rect.top + rect.height * .58 - innerHeight * .24, behavior: 'instant' })
+      let first = 0
+      const deadline = performance.now() + 2500
+      do {
+        await nextPaint()
+        first = painted()
+      } while ((first <= 8 || first >= 1600) && performance.now() < deadline)
+      // Give the 460ms paper motion time to finish, then sample a presented
+      // frame without competing for GPU readback throughout the animation.
+      await new Promise(resolve => setTimeout(resolve, 550))
+      await nextPaint()
+      await nextPaint()
+      return { first, last: painted() }
+    } finally {
+      if (delayClock) window.requestAnimationFrame = originalRAF
+    }
+  }, delayedTimestamp)
+}
+
 test('Leo closes the Pegasus book over the painted pages and can open it in reverse', async ({ page }) => {
   const requests: string[] = []
   page.on('request', req => { if (req.url().endsWith('/motion/leo-book.webp')) requests.push(req.url()) })
@@ -61,25 +97,10 @@ test('Leo closes the Pegasus book over the painted pages and can open it in reve
   const middle = await visibleBookPixels(stage)
   expect(middle.paper).toBeGreaterThan(120)
   expect(middle.handError).toBe(0)
-  await placeBook(stage, .24)
-  // At the end of the movement, the cover is the original painting. A few
-  // illuminated paper edges settle independently while the reader stays put.
-  const settled = await stage.evaluate(async node => {
-    const surface = node.querySelector<HTMLCanvasElement>('.leo-book canvas')!
-    const ctx = surface.getContext('2d')!
-    const values: number[] = []
-    const stop = performance.now() + 750
-    while (performance.now() < stop) {
-      await new Promise(requestAnimationFrame)
-      const pixels = ctx.getImageData(0, 0, surface.width, surface.height).data
-      let count = 0
-      for (let i = 3; i < pixels.length; i += 4) if (pixels[i] > 16) count++
-      values.push(count)
-    }
-    return values
-  })
-  expect(settled.some(n => n > 8 && n < 1600), 'Lit leaves briefly remain over the closed cover').toBe(true)
-  expect(settled.at(-1)).toBe(0)
+  const settled = await closeBookAndSampleLight(stage)
+  expect(settled.first, 'Lit leaves briefly remain over the closed cover').toBeGreaterThan(8)
+  expect(settled.first).toBeLessThan(1600)
+  expect(settled.last).toBe(0)
 
   await placeBook(stage, .85)
   await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeGreaterThan(open.paper * .97)
@@ -117,4 +138,55 @@ test('the original book stays readable in reduced motion and when its optional p
   await expect.poll(() => stage.locator('.scene-image').evaluate(img => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
   await expect(stage.locator('.leo-book')).toHaveCount(0)
   expect(requests).toBe(1)
+})
+
+test('the book stops drawing while only its passage is visible and restores the current pose on return', async ({ page }) => {
+  await openBook(page)
+  const stage = sceneAt(page, 12).locator('.portrait-stage')
+  await placeBook(stage, .85)
+  await expect(stage.locator('.leo-book img')).toHaveAttribute('data-decoded', 'true')
+  await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeGreaterThan(1800)
+  const open = await visibleBookPixels(stage)
+  const hidden = await stage.evaluate(async node => {
+    const surface = node.querySelector<HTMLCanvasElement>('.leo-book canvas')!
+    const ctx = surface.getContext('2d')!
+    let draws = 0
+    const originalClear = ctx.clearRect
+    // Every book paint begins by clearing this canvas, even a frame whose
+    // last small strip of light is already transparent.
+    ctx.clearRect = new Proxy(originalClear, {
+      apply(target, receiver, args) { draws++; return Reflect.apply(target, receiver, args) },
+    })
+    try {
+      window.scrollBy({ top: surface.getBoundingClientRect().bottom + 12, behavior: 'instant' })
+      // Allow the visible-area observer to receive the new intersection.
+      await new Promise(requestAnimationFrame)
+      await new Promise(requestAnimationFrame)
+      const first = draws
+      await new Promise(resolve => setTimeout(resolve, 550))
+      const text = node.closest('section')!.querySelector('.beat-text')!.getBoundingClientRect()
+      return { draws: draws - first, bottom: surface.getBoundingClientRect().bottom,
+        passageVisible: text.top >= 0 && text.bottom <= innerHeight, sameCanvas: surface.isConnected }
+    } finally { ctx.clearRect = originalClear }
+  })
+  expect(hidden.bottom).toBeLessThan(0)
+  expect(hidden.passageVisible).toBe(true)
+  expect(hidden.sameCanvas).toBe(true)
+  expect(hidden.draws, 'The paper-edge animation releases the offscreen canvas').toBe(0)
+
+  await placeBook(stage, .52)
+  await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeLessThan(open.paper * .8)
+  await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeGreaterThan(120)
+})
+
+test('a delayed frame timestamp still lets the brief paper reflection return to the original painting', async ({ page }) => {
+  await openBook(page)
+  const stage = sceneAt(page, 12).locator('.portrait-stage')
+  await placeBook(stage, .52)
+  await expect(stage.locator('.leo-book img')).toHaveAttribute('data-decoded', 'true')
+  await expect.poll(async () => (await visibleBookPixels(stage)).painted).toBeGreaterThan(1600)
+  const settled = await closeBookAndSampleLight(stage, true)
+  expect(settled.first).toBeGreaterThan(8)
+  expect(settled.first).toBeLessThan(1600)
+  expect(settled.last).toBe(0)
 })

@@ -1,9 +1,8 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { chapters, type Scene } from '../data/edition'
-import { attachPortraitTimeline } from '../engine/portraitTimeline'
 import { PortraitScene } from './PortraitScene'
 
-export const SceneRenderer = memo(function SceneRenderer({ scene, motion, prefetch }: { scene: Scene; motion: boolean; prefetch: boolean }) {
+export const SceneRenderer = memo(function SceneRenderer({ scene, current, motion, prefetch }: { scene: Scene; current: boolean; motion: boolean; prefetch: boolean }) {
   const ref = useRef<HTMLElement>(null)
   const first = scene.id === 1
   const [nearby, setNear] = useState(first)
@@ -20,15 +19,10 @@ export const SceneRenderer = memo(function SceneRenderer({ scene, motion, prefet
     viewport.observe(node)
     return () => { prefetch.disconnect(); viewport.disconnect() }
   }, [])
-  useLayoutEffect(() => {
-    if (!visible) return
-    return attachPortraitTimeline(ref.current!, scene.id, motion)
-  }, [motion, visible, scene.id])
-
   return (
     <section ref={ref} className={'scene portrait-scene' + (first ? ' opening' : '') + (chapterOpener ? ' chapter-opening' : '')}
       data-scene={scene.id} data-animated={motion && visible} id={'scene-' + counter} aria-label={'Scene ' + scene.id + ', ' + chapter.name}>
-      <PortraitScene scene={scene} near={near} animate={motion && visible} />
+      <PortraitScene scene={scene} current={current} near={near} animate={motion && visible} />
     </section>
   )
 })

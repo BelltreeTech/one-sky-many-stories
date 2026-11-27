@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import story from './data/story.json'
 import { SceneRenderer } from './components/SceneRenderer'
 import { ReadingHeader } from './components/ReadingHeader'
-import { ParticleEngine } from './engine/ParticleEngine'
 import { useMotionEnabled, useScrollController } from './engine/scrollController'
 import { preserveReadingHistory } from './engine/readingHistory'
 import { observeSceneLayout } from './engine/animationTimeline'
@@ -44,8 +43,7 @@ function App() {
   }, [])
   return <>
     <ReadingHeader current={current} total={story.scenes.length} />
-    <main className="portrait-reader">{story.scenes.map(scene => <SceneRenderer key={scene.id} scene={scene} motion={motion} prefetch={prefetch || scene.id === 1} />)}</main>
-    <ParticleEngine scene={current} running={motion && ![7, 8, 11, 14, 15].includes(current)} />
+    <main className="portrait-reader">{story.scenes.map(scene => <SceneRenderer key={scene.id} scene={scene} current={current === scene.id} motion={motion} prefetch={prefetch || scene.id === 1} />)}</main>
   </>
 }
 

@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { asset, chapters, type Scene } from '../data/edition'
+import { ParticleEngine } from '../engine/ParticleEngine'
+import { attachPortraitTimeline } from '../engine/portraitTimeline'
 import { IllustrationMotion } from './IllustrationMotion'
 import { portraitBeats } from '../engine/typographyReveal'
 import { portraitDimensions, portraitDirections, portraitFile } from '../data/portrait'
@@ -66,7 +68,7 @@ function DecodedExposure({ file, className, near, alt = '' }: {
     alt={alt} aria-hidden={alt ? undefined : true} src={near && !failed ? url : undefined} decoding="async" />
 }
 
-export function PortraitScene({ scene, near, animate }: { scene: Scene; near: boolean; animate: boolean }) {
+export function PortraitScene({ scene, near, animate, current }: { scene: Scene; near: boolean; animate: boolean; current: boolean }) {
   const [loadedSource, setLoadedSource] = useState('')
   useEffect(() => { if (!near) setLoadedSource('') }, [near])
   const [unavailableAt, setUnavailableAt] = useState(-1)
@@ -76,12 +78,19 @@ export function PortraitScene({ scene, near, animate }: { scene: Scene; near: bo
   const filename = portraitFile(scene.id, fallback)
   const bothFailed = fallback && unavailableAt === attempt
   const src = imageURL(filename, fallback && unavailableAt < 0 ? 0 : attempt)
+  const stage = useRef<HTMLSpanElement>(null)
+  const animated = animate && near && !fallback && loadedSource === src
+  useLayoutEffect(() => {
+    if (!animated) return
+    const section = stage.current!.closest<HTMLElement>('[data-scene]')!
+    return attachPortraitTimeline(section, scene.id, true)
+  }, [animated, scene.id])
   const chapter = chapters[scene.chapter - 1]
   const opener = (scene.id - 1) % 4 === 0
   const first = scene.id === 1
   const asksBeforeArt = scene.id === 7 || scene.id === 11
   const alt = portraitDescriptions[scene.id] ?? scene.alt
-  const art = <span className="portrait-stage" style={{
+  const art = <span ref={stage} className="portrait-stage" style={{
     '--portrait-ratio': width / height, '--focus': direction.focus,
   } as CSSProperties}>
     <span className="portrait-camera camera">
@@ -94,7 +103,7 @@ export function PortraitScene({ scene, near, animate }: { scene: Scene; near: bo
             if (fallback) setUnavailableAt(attempt)
             else markFailed()
           }} />
-        {animate && near && !fallback && loadedSource === src && <IllustrationMotion id={scene.id} source={src} />}
+        {animated && <IllustrationMotion id={scene.id} source={src} />}
         {scene.id === 4 && !fallback && <DecodedExposure file="before-memory" className="registered-exposure memory-sky" near={near} />}
         {scene.id === 10 && !fallback && <DecodedExposure file="ridge" className="registered-exposure ridge-bridge" near={near} />}
         {scene.id === 11 && <span className="afterglow" data-wind="still" hidden={!near || fallback}
@@ -103,6 +112,7 @@ export function PortraitScene({ scene, near, animate }: { scene: Scene; near: bo
         </span>}
       </span>
     </span>
+    {current && <ParticleEngine running={animated && ![7, 8, 11, 12, 14, 15].includes(scene.id)} />}
   </span>
 
   return <div className={'portrait-story' + (asksBeforeArt ? ' quest' : '')}>

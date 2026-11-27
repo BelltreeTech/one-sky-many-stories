@@ -22,9 +22,17 @@ export function bindInk(root: HTMLElement, layers: readonly PaintedLayer[]): Pai
   const surfaces = Array.from(root.querySelectorAll<HTMLElement>('[data-painted-detail]'))
   const sprites = surfaces.map(el => el.firstElementChild as HTMLElement)
   const previous = new Float64Array(layers.length).fill(-1)
+  const stage = layers.some(layer => layer.viewportAnchorY !== undefined)
+    ? root.closest<HTMLElement>('.portrait-stage') : null
   return progress => {
+    // The untransformed stage travels with the document. Read it once before
+    // writing any layer transforms, only for art with a viewport-timed detail.
+    const bounds = stage?.getBoundingClientRect()
     layers.forEach((layer, i) => {
-      const phase = between(progress, layer.from ?? .16, layer.to ?? .84)
+      const position = bounds && layer.viewportAnchorY !== undefined
+        ? 1 - (bounds.top + bounds.height * layer.viewportAnchorY) / window.innerHeight
+        : progress
+      const phase = between(position, layer.from ?? .16, layer.to ?? .84)
       if (phase === previous[i]) return
       previous[i] = phase
       const sprite = sprites[i]

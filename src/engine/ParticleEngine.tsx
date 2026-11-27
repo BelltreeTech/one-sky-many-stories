@@ -1,11 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useRef } from 'react'
 
-export function ParticleEngine({ running, scene }: { running: boolean; scene?: number }) {
-  const [host, setHost] = useState<HTMLElement | null>(null)
-  useLayoutEffect(() => {
-    setHost(scene ? document.querySelector<HTMLElement>('[data-scene="' + scene + '"] .portrait-stage') : null)
-  }, [scene])
+export function ParticleEngine({ running }: { running: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const canvas = ref.current
@@ -59,20 +54,16 @@ export function ParticleEngine({ running, scene }: { running: boolean; scene?: n
       if (visible) frame = requestAnimationFrame(draw)
       else cancelAnimationFrame(frame)
     }
-    const visibility = host ? new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting)) : null
-    if (visibility) {
-      canvas.dataset.running = 'false'
-      visibility.observe(canvas)
-    } else setVisible(true)
+    const visibility = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting))
+    canvas.dataset.running = 'false'
+    visibility.observe(canvas)
     return () => {
       cancelAnimationFrame(frame)
-      visibility?.disconnect()
+      visibility.disconnect()
       observer.disconnect()
       canvas.dataset.running = 'false'
       ctx.clearRect(0, 0, width, height)
     }
-  }, [running, host, scene])
-  const surface = <canvas ref={ref} className="starlight" aria-hidden="true" />
-  if (scene) return host ? createPortal(surface, host) : null
-  return surface
+  }, [running])
+  return <canvas ref={ref} className="starlight" aria-hidden="true" />
 }

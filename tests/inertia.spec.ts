@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { portraitDirections } from '../src/data/portrait';
 import { openBook, test, visitScene } from './reader-harness';
 
 test('a changing Safari toolbar leaves a native page scroll in control', async ({ page }) => {
@@ -62,7 +63,10 @@ test('fonts finishing while the reader advances do not reset the scroll position
   try {
     await page.goto('./', { waitUntil: 'domcontentloaded' });
     await expect.poll(() => page.evaluate(() => document.fonts.status)).toBe('loading');
-    await visitScene(page, 6);
+    const chapter = await visitScene(page, 6);
+    const paragraph = chapter.locator('.beat-text');
+    const paragraphTop = () => paragraph.evaluate(el => el.getBoundingClientRect().top);
+    const initial = await paragraphTop();
     await page.evaluate(() => {
       const writes: number[] = [];
       window.scrollTo = new Proxy(window.scrollTo, {
@@ -79,7 +83,44 @@ test('fonts finishing while the reader advances do not reset the scroll position
     await page.keyboard.press('PageDown');
     releaseFonts();
     await expect(page.locator('html')).toHaveAttribute('data-font-scroll-writes', '[]');
+    const forward = await paragraphTop();
+    const distance = await page.evaluate(() => innerHeight / 3);
+    expect(initial - forward, 'The native forward gesture moves the paragraph').toBeGreaterThan(distance);
+    await page.keyboard.press('PageUp');
+    await expect.poll(paragraphTop, { message: 'The reader can bring the paragraph back' }).toBeGreaterThan(forward + distance);
   } finally {
     releaseFonts();
   }
+});
+
+test('an idle illustration takes the same pose after a small viewport resize and a return scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 780 });
+  await openBook(page);
+  const scene = await visitScene(page, 12);
+  const art = scene.locator('.portrait-stage');
+  await art.evaluate(el => el.scrollIntoView({ block: 'center' }));
+  await expect(art.locator('.leo-book img')).toHaveAttribute('data-decoded', 'true');
+  // Use the chapter's actual position and declared camera endpoints as the
+  // oracle, so a stale first frame cannot be mistaken for the resting pose.
+  const geometry = () => art.evaluate((el, direction) => {
+    const r = el.getBoundingClientRect();
+    const t = Math.max(0, Math.min(1, (innerHeight - r.top) / (innerHeight + r.height)));
+    const expected = direction.start + t * t * (3 - 2 * t) * (direction.end - direction.start);
+    const transform = getComputedStyle(el.querySelector('.camera')!).transform;
+    return { y: scrollY, scale: new DOMMatrixReadOnly(transform === 'none' ? undefined : transform).a, expected };
+  }, portraitDirections[12]);
+  const error = async () => {
+    const { scale, expected } = await geometry();
+    return Math.abs(scale - expected);
+  };
+  await expect.poll(error).toBeLessThan(.00002);
+  const before = await geometry();
+  await page.setViewportSize({ width: 393, height: 842 });
+  await expect.poll(async () => Math.abs((await geometry()).expected - before.expected)).toBeGreaterThan(.0002);
+  await expect.poll(error).toBeLessThan(.00002);
+  const atRest = await geometry();
+  await page.evaluate(y => scrollTo(0, y + 16), atRest.y);
+  await expect.poll(async () => Math.abs((await geometry()).scale - atRest.scale)).toBeGreaterThan(.0001);
+  await page.evaluate(y => scrollTo(0, y), atRest.y);
+  await expect.poll(async () => Math.abs((await geometry()).scale - atRest.scale)).toBeLessThan(.00002);
 });

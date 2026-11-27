@@ -7,19 +7,14 @@ const lastPose = 24
 const settleDuration = 460
 
 export function attachLeoBook(stage: HTMLElement) {
-  let surface: HTMLCanvasElement | null = null
-  let context: CanvasRenderingContext2D | null = null
+  const surface = stage.querySelector<HTMLCanvasElement>('.leo-book canvas')
+  const context = surface?.getContext('2d') ?? null
   let atlas: HTMLImageElement | null = null
+  let visible = false
   let position: number | undefined
   let impulse = 0
   let lastMovement = 0
   let settlingFrame = 0
-
-  function connect() {
-    surface = stage.querySelector<HTMLCanvasElement>('.leo-book canvas')
-    atlas = stage.querySelector<HTMLImageElement>('.leo-book img[data-decoded="true"]')
-    context = surface?.getContext('2d') ?? null
-  }
 
   function drawPose(index: number, alpha: number) {
     if (!surface || !context || !atlas || alpha <= 0) return
@@ -36,7 +31,7 @@ export function attachLeoBook(stage: HTMLElement) {
   }
 
   function paint(time: number) {
-    if (!surface || !context || !atlas || position === undefined) return
+    if (!visible || !surface || !context || !atlas || position === undefined) return
     context.clearRect(0, 0, surface.width, surface.height)
     if (position < 1) {
       const pose = position * lastPose
@@ -51,24 +46,40 @@ export function attachLeoBook(stage: HTMLElement) {
     context.globalAlpha = 1
   }
 
-  function settle(time: number) {
-    paint(time)
-    settlingFrame = remaining(time) > 0 ? requestAnimationFrame(settle) : 0
+  function settle() {
+    // Measure from the same clock as the gesture. On a delayed WebKit frame,
+    // the presentation timestamp can still precede the latest scroll update.
+    const now = performance.now()
+    paint(now)
+    settlingFrame = remaining(now) > 0 ? requestAnimationFrame(settle) : 0
   }
 
   function ready() {
-    connect()
+    atlas = stage.querySelector<HTMLImageElement>('.leo-book img[data-decoded="true"]')
     paint(performance.now())
   }
+  function stopSettling() {
+    cancelAnimationFrame(settlingFrame)
+    settlingFrame = 0
+    impulse = 0
+  }
+  // The passage can remain visible after the small book leaves the screen.
+  // Keep its scroll position, and paint that pose when its own crop re-enters.
+  const viewport = new IntersectionObserver(([entry]) => {
+    visible = entry.isIntersecting && entry.intersectionRect.width > 0 && entry.intersectionRect.height > 0
+    if (visible) paint(performance.now())
+    else stopSettling()
+  })
+  if (surface) viewport.observe(surface)
   stage.addEventListener('leo-book-decoded', ready)
-  connect()
+  ready()
 
   return {
     update(progress: number) {
       const next = between(progress, .33, .67)
       if (next === position) return
       const time = performance.now()
-      if (position !== undefined && atlas?.isConnected) {
+      if (visible && position !== undefined && atlas?.isConnected) {
         impulse = Math.min(1, remaining(time) + Math.abs(next - position) * 5)
         lastMovement = time
         if (!settlingFrame) settlingFrame = requestAnimationFrame(settle)
@@ -77,9 +88,10 @@ export function attachLeoBook(stage: HTMLElement) {
       paint(time)
     },
     destroy() {
-      cancelAnimationFrame(settlingFrame)
+      viewport.disconnect()
+      stopSettling()
       stage.removeEventListener('leo-book-decoded', ready)
-      if (surface && context) context.clearRect(0, 0, surface.width, surface.height)
+      if (visible && surface && context) context.clearRect(0, 0, surface.width, surface.height)
     },
   }
 }

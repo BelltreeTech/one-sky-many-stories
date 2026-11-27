@@ -1,7 +1,7 @@
 // All coordinates are percentages of the upright source painting, before the
 // camera transform. Areas describe centre x, centre y, width and height.
 export type Area = readonly [number, number, number, number]
-type Timing = { from?: number; to?: number }
+type Timing = { from?: number; to?: number; viewportAnchorY?: number }
 type Travel = { x?: number; y?: number; turn?: number; pivot?: string; sway?: boolean }
 export type PaintedLayer =
   | ({ kind: 'ink'; name: string; area: Area } & Travel & Timing)
@@ -53,9 +53,10 @@ export const illustrationMotion: Record<number, readonly PaintedLayer[]> = {
   ],
   7: [
     ink('counting-hand', [44.8, 36.7, 16, 16], { turn: 3.4, pivot: '44% 89%' }),
-    // These are the six stars already present in the original night sky.
+    // The six pulses share the centre of the painted cluster (18% down the
+    // plate), so they stay in order as that part of the sky crosses the screen.
     ...([[42.2, 18.2], [49.2, 16.7], [55.4, 14.1], [61.4, 16.7], [53.1, 20.1], [45.8, 22.4]] as const)
-      .map(([x, y], i) => light('counted-star-' + (i + 1), [x, y, 6.8, 4.25], silver, .64, { from: .18 + i * .072, to: .39 + i * .072 })),
+      .map(([x, y], i) => light('counted-star-' + (i + 1), [x, y, 6.8, 4.25], silver, .64, { from: .18 + i * .072, to: .39 + i * .072, viewportAnchorY: .18 })),
   ],
   8: [
     ink('sleeve-at-the-eyepiece', [40.8, 53.9, 15, 13], { turn: -3.2, pivot: '23% 95%' }),
@@ -80,7 +81,7 @@ export const illustrationMotion: Record<number, readonly PaintedLayer[]> = {
   ],
   14: [
     ink('ripple-near-the-shore', [77, 59.3, 40, 7], { x: 4.5, y: 2, sway: true }),
-    ink('farther-ripple', [74, 62.5, 33, 4], { x: -5, sway: true, from: .27, to: .87 }),
+    ink('farther-ripple', [74, 62.5, 33, 4], { x: -5, sway: true }),
     light('ripple-in-the-dawn', [79, 61.5, 29, 3.1], dawn, .37, { x: -17 }),
   ],
   15: [
