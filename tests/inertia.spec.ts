@@ -6,9 +6,7 @@ test('a changing Safari toolbar leaves a native page scroll in control', async (
   await openBook(page);
   const scene = await visitScene(page, 5);
   await scene.locator('.scene-image').evaluate((image: HTMLImageElement) => image.decode());
-  // Font loading queues its own post-scroll layout measurement. Let this
-  // settle before isolating a toolbar change in an already open chapter.
-  await page.waitForTimeout(800);
+  // Isolate a toolbar change after the chapter and its text have loaded.
 
   // Keep the layout width and the reading column fixed. Mobile Safari can
   // resize just its visual viewport as the address bar moves. Playwright has
@@ -52,4 +50,36 @@ test('a changing Safari toolbar leaves a native page scroll in control', async (
   const result = JSON.parse((await page.locator('html').getAttribute('data-inertia-result'))!);
   expect(result.end - result.start, 'The native PageDown travels through the page').toBeGreaterThan(result.height * .7);
   expect(result.topWrites, 'The page never commands a jump to the cover during toolbar movement').toEqual([]);
+});
+
+test('fonts finishing while the reader advances do not reset the scroll position', async ({ page }) => {
+  let releaseFonts!: () => void;
+  const fontsAllowed = new Promise<void>(resolve => { releaseFonts = resolve; });
+  await page.route('**/*.woff2', async route => {
+    await fontsAllowed;
+    await route.continue();
+  });
+  try {
+    await page.goto('./', { waitUntil: 'domcontentloaded' });
+    await expect.poll(() => page.evaluate(() => document.fonts.status)).toBe('loading');
+    await visitScene(page, 6);
+    await page.evaluate(() => {
+      const writes: number[] = [];
+      window.scrollTo = new Proxy(window.scrollTo, {
+        apply(target, receiver, args) {
+          const top = typeof args[0] === 'object' ? args[0]?.top : args[1];
+          if (top === 0 && scrollY > innerHeight) writes.push(scrollY);
+          return Reflect.apply(target, receiver, args);
+        },
+      });
+      document.fonts.ready.then(() => {
+        setTimeout(() => { document.documentElement.dataset.fontScrollWrites = JSON.stringify(writes); }, 1000);
+      });
+    });
+    await page.keyboard.press('PageDown');
+    releaseFonts();
+    await expect(page.locator('html')).toHaveAttribute('data-font-scroll-writes', '[]');
+  } finally {
+    releaseFonts();
+  }
 });

@@ -6,7 +6,7 @@ import { ReadingHeader } from './components/ReadingHeader'
 import { ParticleEngine } from './engine/ParticleEngine'
 import { useMotionEnabled, useScrollController } from './engine/scrollController'
 import { preserveReadingHistory } from './engine/readingHistory'
-import { scheduleSceneRefresh } from './engine/animationTimeline'
+import { observeSceneLayout } from './engine/animationTimeline'
 import './styles/reader.css'
 import './styles/portrait.css'
 
@@ -39,9 +39,8 @@ function App() {
   const motion = useMotionEnabled()
   useLayoutEffect(preserveReadingHistory, [])
   useEffect(() => {
-    let mounted = true
-    void document.fonts.ready.then(() => { if (mounted) scheduleSceneRefresh() })
-    return () => { mounted = false }
+    const strip = document.querySelector<HTMLElement>('main.portrait-reader')!
+    return observeSceneLayout(strip)
   }, [])
   return <>
     <ReadingHeader current={current} total={story.scenes.length} />
