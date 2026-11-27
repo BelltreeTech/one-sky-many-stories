@@ -23,12 +23,12 @@ export const SceneRenderer = memo(function SceneRenderer({ scene, motion, prefet
   useLayoutEffect(() => {
     if (!visible) return
     return attachPortraitTimeline(ref.current!, scene.id, motion)
-  }, [motion, visible, near, scene.id])
+  }, [motion, visible, scene.id])
 
   return (
     <section ref={ref} className={'scene portrait-scene' + (first ? ' opening' : '') + (chapterOpener ? ' chapter-opening' : '')}
       data-scene={scene.id} data-animated={motion && visible} id={'scene-' + counter} aria-label={'Scene ' + scene.id + ', ' + chapter.name}>
-      <PortraitScene scene={scene} near={near} />
+      <PortraitScene scene={scene} near={near} animate={motion && visible} />
     </section>
   )
 })

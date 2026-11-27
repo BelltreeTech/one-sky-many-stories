@@ -1,6 +1,6 @@
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { portraitDirections } from '../data/portrait'
-
+import { positionPainting } from './illustrationMotion'
 import { between } from './sceneTransition'
 
 // The artwork and narration already travel together in document flow. These
@@ -44,6 +44,7 @@ export function attachPortraitTimeline(scene: HTMLElement, id: number, motion: b
       // it comes into view. A modest push follows the eye to the eyepiece.
       scale += .048 * between(progress, .3, .82)
     }
+    positionPainting(stage, progress)
     camera.style.transform = 'translateY(' + dy.toFixed(4) + '%) scale(' + scale.toFixed(5) + ')'
     if (id === 4 || id === 10) {
       // The pre-memory sky and the empty ridge share each painting's camera

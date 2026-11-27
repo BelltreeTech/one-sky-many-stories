@@ -11,7 +11,7 @@ if (!existsSync(join(dist, 'index.html'))) {
   throw new Error('Run the Vite production build before packaging.');
 }
 
-const required = new Set(['index.html', 'star.svg', 'atmosphere/night-sky.webp', 'portrait/telescope.webp', 'portrait/ridge.webp', 'portrait/before-memory.webp']);
+const required = new Set(['index.html', 'star.svg', 'atmosphere/night-sky.webp', 'portrait/telescope.webp', 'portrait/ridge.webp', 'portrait/before-memory.webp', 'motion/leo-book.webp']);
 for (const scene of story.scenes) {
   const filename = String(scene.id).padStart(2, '0') + '.webp';
   required.add(scene.image);

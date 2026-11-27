@@ -10,6 +10,8 @@
 
 第7場面では祖母の問いとルナの答えの間に、六つの星を探せる縦絵がある。第8場面ではレオの望遠鏡の先に淡い星が広がる。第11場面はルナの問いから七姉妹の姿を通り、レオの答えへ続く。[全20場面の演出表](specs/portrait-edition/spec.md)
 
+全20場面で、指の送りに合わせて絵の中のものが動く。「Subaru」では夜の縁側に桜の花びらが舞い、第7場面ではルナが数える六つの星が一つずつ光る。第12場面では下へ送るほどレオの青い本が閉じ、逆に送ると同じ角度まで開く。指が止まると紙の端と表紙の照り返しだけが短く揺れる。端末で「視差効果を減らす」を有効にすると静止した挿絵で読める。[六つの星](https://belltreetech.github.io/one-sky-many-stories/#scene-07)・[レオが本を閉じる場面](https://belltreetech.github.io/one-sky-many-stories/#scene-12)・[Matarikiの食卓](https://belltreetech.github.io/one-sky-many-stories/#scene-17)
+
 ## 起動
 
 Node.js 22.12以降とnpmを使う。CIのNodeは24。依存関係のバージョンはロックファイルに固定してある。
@@ -61,6 +63,8 @@ python3 -m venv .private/extract-env
 | Typography Reveal | [typographyReveal.ts](src/engine/typographyReveal.ts) | 発見の場面の原文を問いと答えに分ける。途中に置いた絵を指で送ると次の文が見える。 |
 | Particle Engine | [ParticleEngine.tsx](src/engine/ParticleEngine.tsx) | 今読んでいる絵のCanvas 1枚で星を明滅させる。描画解像度と更新頻度に上限を設け、動作軽減時・非表示タブでは停止。 |
 | Scene Transition | [sceneTransition.ts](src/engine/sceneTransition.ts) | スクロール量から、思い出や神話の像が原画に重なる濃度を求める。上方向・下方向とも同じスクロール位置に同期。 |
+
+[挿絵の細部の配置](src/data/illustrationMotion.ts)は、原画を基準に手・衣服・水面・光の位置と動く範囲を指定する。[レオの本](src/engine/leoBook.ts)は原画の両手の位置に合わせた小さな画像を使う。追加の描画は画面付近の原寸の挿絵が読み込まれたときに有効になり、縮小プレビューや動作軽減時は静止画が見える。
 
 縦版の[演出設定](src/data/portrait.ts)は場面ごとの注視点、カメラの進み方、発見の場面にある英文の区切りを定める。[縦版タイムライン](src/engine/portraitTimeline.ts)は現在のスクロール位置から望遠鏡の視野や神話への移行を描く。原文は [story.json](src/data/story.json) に一度だけ保持する。セーフエリアには `viewport-fit=cover` と `env(safe-area-inset-*)`、表示高には `svh`・`dvh` を使う。本文は拡大に合わせて改行し、必要な高さまで場面が伸びる。
 

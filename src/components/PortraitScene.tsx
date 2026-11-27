@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { asset, chapters, type Scene } from '../data/edition'
+import { IllustrationMotion } from './IllustrationMotion'
 import { portraitBeats } from '../engine/typographyReveal'
 import { portraitDimensions, portraitDirections, portraitFile } from '../data/portrait'
 
@@ -65,7 +66,9 @@ function DecodedExposure({ file, className, near, alt = '' }: {
     alt={alt} aria-hidden={alt ? undefined : true} src={near && !failed ? url : undefined} decoding="async" />
 }
 
-export function PortraitScene({ scene, near }: { scene: Scene; near: boolean }) {
+export function PortraitScene({ scene, near, animate }: { scene: Scene; near: boolean; animate: boolean }) {
+  const [loadedSource, setLoadedSource] = useState('')
+  useEffect(() => { if (!near) setLoadedSource('') }, [near])
   const [unavailableAt, setUnavailableAt] = useState(-1)
   const { attempt, failed: fallback, markFailed } = useImageRecovery(near, unavailableAt)
   const [width, height] = portraitDimensions(scene.id)
@@ -85,11 +88,13 @@ export function PortraitScene({ scene, near }: { scene: Scene; near: boolean }) 
       <span className="portrait-sheet">
         <img className="scene-image" src={near && !bothFailed ? src : undefined} width={width} height={height} alt={alt}
           data-fallback={fallback} decoding="async" fetchPriority={first ? 'high' : 'auto'}
+          onLoad={event => { if (event.currentTarget.naturalWidth) setLoadedSource(src) }}
           onError={() => {
             if (!near) return
             if (fallback) setUnavailableAt(attempt)
             else markFailed()
           }} />
+        {animate && near && !fallback && loadedSource === src && <IllustrationMotion id={scene.id} source={src} />}
         {scene.id === 4 && !fallback && <DecodedExposure file="before-memory" className="registered-exposure memory-sky" near={near} />}
         {scene.id === 10 && !fallback && <DecodedExposure file="ridge" className="registered-exposure ridge-bridge" near={near} />}
         {scene.id === 11 && <span className="afterglow" data-wind="still" hidden={!near || fallback}
