@@ -157,26 +157,34 @@ test('the book stops drawing while only its passage is visible and restores the 
     const surface = node.querySelector<HTMLCanvasElement>('.leo-book canvas')!
     const ctx = surface.getContext('2d')!
     let draws = 0
+    let paintedPose: string | undefined
     const originalClear = ctx.clearRect
+    const originalDraw = ctx.drawImage
     // Every book paint begins by clearing this canvas, even a frame whose
     // last small strip of light is already transparent.
     ctx.clearRect = new Proxy(originalClear, {
       apply(target, receiver, args) { draws++; return Reflect.apply(target, receiver, args) },
     })
-    // Rendering frames and native intersection notifications are separate
-    // queues. Observe this same canvas leaving before counting idle paints.
-    const outside = new Promise<void>(resolve => {
-      const observer = new IntersectionObserver(entries => {
-        const entry = entries[entries.length - 1]
-        if (entry.boundingClientRect.bottom >= 0 || entry.intersectionRect.height > 0) return
-        observer.disconnect()
-        resolve()
-      })
-      observer.observe(surface)
+    ctx.drawImage = new Proxy(originalDraw, {
+      apply(target, receiver, args) {
+        const result = Reflect.apply(target, receiver, args)
+        paintedPose = node.style.getPropertyValue('--cinematic-progress')
+        return result
+      },
     })
+    let outside = false, returned = false
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (entry.boundingClientRect.bottom < 0 && entry.intersectionRect.height === 0) outside = true
+        if (outside && entry.isIntersecting && entry.intersectionRect.width > 0 && entry.intersectionRect.height > 0) returned = true
+      }
+    }, { threshold: Number.EPSILON })
+    observer.observe(surface)
     window.scrollBy({ top: surface.getBoundingClientRect().bottom + 12, behavior: 'instant' })
     return {
-      outside, count: () => draws, restore: () => { ctx.clearRect = originalClear },
+      outside: () => outside, count: () => draws,
+      paintedAfterReturn: () => returned && paintedPose === node.style.getPropertyValue('--cinematic-progress'),
+      restore() { observer.disconnect(); ctx.clearRect = originalClear; ctx.drawImage = originalDraw },
       visiblePassage() {
         const text = node.closest('section')!.querySelector('.beat-text')!.getBoundingClientRect()
         return { bottom: surface.getBoundingClientRect().bottom, sameCanvas: surface.isConnected,
@@ -184,15 +192,13 @@ test('the book stops drawing while only its passage is visible and restores the 
       },
     }
   })
-  await monitor.evaluate(probe => probe.outside)
+  await expect.poll(() => monitor.evaluate(probe => probe.outside())).toBe(true)
   await page.clock.runFor(16)
   const first = await monitor.evaluate(probe => probe.count())
   await page.clock.runFor(550)
   const hidden = await monitor.evaluate(probe => ({
     ...probe.visiblePassage(), draws: probe.count(),
   }))
-  await monitor.evaluate(probe => probe.restore())
-  await monitor.dispose()
   expect(hidden.bottom).toBeLessThan(0)
   expect(hidden.passageVisible).toBe(true)
   expect(hidden.sameCanvas).toBe(true)
@@ -200,7 +206,13 @@ test('the book stops drawing while only its passage is visible and restores the 
 
   await enterBook(page)
   await advanceTo(stage, .49)
+  // Simulated film time can advance before WebKit delivers its native
+  // intersection records. Keep the clock still until this very canvas is
+  // inside again and drawImage has presented the requested intermediate pose.
+  await expect.poll(() => monitor.evaluate(probe => probe.paintedAfterReturn())).toBe(true)
   const returned = await visibleBookPixels(stage)
+  await monitor.evaluate(probe => probe.restore())
+  await monitor.dispose()
   expect(returned.paper).toBeLessThan(open.paper * .8)
   expect(returned.paper).toBeGreaterThan(120)
 })
