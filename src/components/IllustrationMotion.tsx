@@ -36,7 +36,7 @@ export function IllustrationMotion({ id, source }: { id: number; source: string 
     const stage = root.closest<HTMLElement>('.portrait-stage')!
     if (id === 12) {
       const book = attachLeoBook(stage)
-      const release = followPainting(stage, p => book.update(p))
+      const release = followPainting(stage, book.update)
       return () => { release(); book.destroy() }
     }
     return followPainting(stage, bindInk(root, layers))

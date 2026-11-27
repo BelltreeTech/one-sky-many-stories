@@ -2,8 +2,7 @@ import { between } from './sceneTransition'
 import type { PaintedLayer } from '../data/illustrationMotion'
 
 type Paint = (progress: number) => void
-// The scene camera and its ink layers must see exactly the same position. Keep
-// the last pose for art that finishes loading halfway through a scroll.
+// Keep the local film time for a painted layer that mounts after the camera.
 const progressByStage = new WeakMap<HTMLElement, number>()
 const painters = new WeakMap<HTMLElement, Paint>()
 
@@ -22,17 +21,9 @@ export function bindInk(root: HTMLElement, layers: readonly PaintedLayer[]): Pai
   const surfaces = Array.from(root.querySelectorAll<HTMLElement>('[data-painted-detail]'))
   const sprites = surfaces.map(el => el.firstElementChild as HTMLElement)
   const previous = new Float64Array(layers.length).fill(-1)
-  const stage = layers.some(layer => layer.viewportAnchorY !== undefined)
-    ? root.closest<HTMLElement>('.portrait-stage') : null
   return progress => {
-    // The untransformed stage travels with the document. Read it once before
-    // writing any layer transforms, only for art with a viewport-timed detail.
-    const bounds = stage?.getBoundingClientRect()
     layers.forEach((layer, i) => {
-      const position = bounds && layer.viewportAnchorY !== undefined
-        ? 1 - (bounds.top + bounds.height * layer.viewportAnchorY) / window.innerHeight
-        : progress
-      const phase = between(position, layer.from ?? .16, layer.to ?? .84)
+      const phase = between(progress, layer.from ?? .16, layer.to ?? .84)
       if (phase === previous[i]) return
       previous[i] = phase
       const sprite = sprites[i]

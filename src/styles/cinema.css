@@ -6,9 +6,8 @@
 .film-shot, .scene-weather { --cue: var(--cinematic-progress,0); overflow: clip; }
 .film-shot { visibility: hidden; }
 .film-shot[data-ready="true"] { visibility: visible; }
-.film-shot[data-arrival="late"]:is(.shot-insert,.shot-establish) .film-exposure { opacity: var(--loaded-mix,0); }
-.shot-epilogue[data-arrival="late"] .film-exposure { animation: valley-arrives .65s ease-out both; }
-@keyframes valley-arrives { from { opacity: 0; } to { opacity: 1; } }
+.film-shot[data-arrival="late"]:not(.shot-prologue) .film-exposure { animation: develop-exposure .65s ease-out both; }
+@keyframes develop-exposure { from { opacity: 0; } to { opacity: 1; } }
 .film-frame {
   object-fit: cover; transform-origin: var(--shot-focus);
   transform: scale(calc(1 + (1 - var(--cue)) * var(--shot-zoom))) rotate(calc((1 - var(--cue)) * var(--shot-roll)));
@@ -29,12 +28,13 @@
   --remaining: clamp(0,calc(1 - var(--cue) * 3.85),1);
   transform: scale(calc(1 + var(--remaining) * var(--shot-zoom))) rotate(calc(var(--remaining) * var(--shot-roll)));
 }
-.shot-prologue { opacity: clamp(0,calc(1.12 - var(--cue) * 1.65),1); }
 .shot-prologue[data-ready="true"] .film-exposure {
-  animation: prologue-dissolve 4.8s cubic-bezier(.32,0,.54,1) both;
+  animation: prologue-dissolve 5.2s cubic-bezier(.32,0,.54,1) both paused;
+  animation-delay: calc(-5.2s * var(--cue));
 }
 .shot-prologue[data-ready="true"] .film-frame {
-  animation: approach-the-hill 4.8s cubic-bezier(.12,.46,.39,1) both; transform-origin: 27% 70%;
+  animation: approach-the-hill 5.2s cubic-bezier(.12,.46,.39,1) both paused;
+  animation-delay: calc(-5.2s * var(--cue)); transform-origin: 27% 70%;
 }
 @keyframes prologue-dissolve {
   0% { opacity: 0; } 9%,59% { opacity: 1; } 100% { opacity: 0; visibility: hidden; }

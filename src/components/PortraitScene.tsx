@@ -84,18 +84,18 @@ export function PortraitScene({ scene, near, animate, current }: { scene: Scene;
   const src = imageURL(filename, fallback && unavailableAt < 0 ? 0 : attempt)
   const stage = useRef<HTMLSpanElement>(null)
   const lens = useRef<HTMLSpanElement>(null)
-  const followsScroll = animate && near
-  const animateFullArt = followsScroll && !fallback && loadedSource === src
+  const motionActive = animate && near
+  const animateFullArt = motionActive && !fallback && loadedSource === src
   useEffect(() => {
-    if (near && !animate && !fallback && loadedSource === src) warmEstablishingShot(scene.id)
+    if (near && !document.hidden && !animate && !fallback && loadedSource === src) warmEstablishingShot(scene.id)
   }, [near, animate, fallback, loadedSource, src, scene.id])
   useLayoutEffect(() => {
-    if (followsScroll && lens.current) return attachTelescopeAperture(lens.current)
-  }, [followsScroll])
+    if (motionActive && lens.current) return attachTelescopeAperture(lens.current)
+  }, [motionActive])
   useLayoutEffect(() => {
     if (!animateFullArt) return
     const section = stage.current!.closest<HTMLElement>('[data-scene]')!
-    return attachPortraitTimeline(section, scene.id, true)
+    return attachPortraitTimeline(section, scene.id)
   }, [animateFullArt, scene.id])
   const chapter = chapters[scene.chapter - 1]
   const opener = (scene.id - 1) % 4 === 0

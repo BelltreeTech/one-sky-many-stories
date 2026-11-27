@@ -106,7 +106,9 @@
 }
 .quest .reading-beat:first-child .portrait-stage { margin-top: -.35rem; }
 .quest .reading-beat:nth-child(2) .beat-text { margin-top: calc(-1 * var(--overlap)); }
-.portrait-stage, .lens-field { -webkit-user-select: none; user-select: none; }
+/* A camera move inside fixed-size art must never move the document's scroll
+   anchor. Leave the surrounding reading beats available to the browser. */
+.portrait-stage, .lens-field { -webkit-user-select: none; user-select: none; overflow-anchor: none; }
 .lens-field { display: block; position: relative; overflow: clip; }
 .lens-field {
   width: 100%; aspect-ratio: 941 / 1672;
