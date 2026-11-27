@@ -54,7 +54,10 @@ export function ParticleEngine({ running }: { running: boolean }) {
       if (visible) frame = requestAnimationFrame(draw)
       else cancelAnimationFrame(frame)
     }
-    const visibility = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting))
+    const visibility = new IntersectionObserver(entries => {
+      const latest = entries[entries.length - 1]
+      setVisible(latest.isIntersecting && latest.intersectionRatio > 0)
+    }, { threshold: Number.EPSILON })
     canvas.dataset.running = 'false'
     visibility.observe(canvas)
     return () => {

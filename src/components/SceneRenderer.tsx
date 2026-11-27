@@ -13,8 +13,8 @@ export const SceneRenderer = memo(function SceneRenderer({ scene, current, motio
   const counter = String(scene.id).padStart(2, '0')
   useEffect(() => {
     const node = ref.current!
-    const prefetch = new IntersectionObserver(([entry]) => setNear(entry.isIntersecting), { rootMargin: '1200px 0px' })
-    const viewport = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting))
+    const prefetch = new IntersectionObserver(entries => setNear(entries[entries.length - 1].isIntersecting), { rootMargin: '1200px 0px' })
+    const viewport = new IntersectionObserver(entries => setVisible(entries[entries.length - 1].isIntersecting))
     prefetch.observe(node)
     viewport.observe(node)
     return () => { prefetch.disconnect(); viewport.disconnect() }
