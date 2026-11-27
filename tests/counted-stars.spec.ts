@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { openBook, test } from './reader-harness';
-import { enterPainting, stagePose, waitForPose } from './playback-harness';
+import { openBook, sceneAt, test } from './reader-harness';
+import { stagePose } from './playback-harness';
 
 // Capture what reaches the reader. An opaque camera insert can completely
 // hide a pulse whose underlying DOM geometry and opacity are both correct.
@@ -39,13 +39,20 @@ async function visiblePulsePixels(page: Page, star: Locator) {
 for (const viewport of [{ width: 393, height: 852 }, { width: 1280, height: 320 }]) {
   test(`all six stars reach peak brightness in view and in order at ${viewport.width}×${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
-    await page.clock.install();
+    // Freeze before loading the reader. The time between two browser protocol
+    // calls on a busy runner must not consume part of the first star's pulse.
+    await page.clock.install({ time: new Date('2025-02-01T00:00:00Z') });
+    await page.clock.pauseAt(new Date('2025-02-01T00:10:00Z'));
     await openBook(page);
-    const stage = await enterPainting(page, 7, .18);
-    await waitForPose(stage, .01);
-    // The clock is frozen between samples so that subtracting the star from
-    // a second actual screen frame cannot pick up unrelated moving pixels.
-    await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now()) + 75));
+    const stage = sceneAt(page, 7).locator('.portrait-stage');
+    await stage.evaluate(art => {
+      const box = art.getBoundingClientRect();
+      scrollBy({ top: box.top + .18 * box.height - innerHeight / 2, behavior: 'instant' });
+    });
+    await expect.poll(async () => {
+      await page.clock.runFor(16);
+      return stage.getAttribute('data-playback');
+    }).toBe('playing');
     const lights = stage.locator('[data-painted-detail^="counted-star-"] > i');
     await expect(lights).toHaveCount(6);
     const firstY = await page.evaluate(() => scrollY);
