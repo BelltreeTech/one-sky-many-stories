@@ -125,7 +125,7 @@ function observePreview(scene: Locator) {
   return scene.evaluate(async section => {
     const prototype = CanvasRenderingContext2D.prototype;
     const fill = prototype.fill;
-    let starFills = 0, stayed = true, frames = 0;
+    let starFills = 0, stayed = true, running = false, frames = 0;
     prototype.fill = new Proxy(fill, { apply(target, context: CanvasRenderingContext2D, args) {
       if (context.canvas.classList.contains('starlight')) starFills++;
       return Reflect.apply(target, context, args);
@@ -137,9 +137,10 @@ function observePreview(scene: Locator) {
         const rect = section.getBoundingClientRect();
         const current = document.querySelector('[data-current-scene]')?.getAttribute('data-current-scene');
         stayed &&= rect.top <= innerHeight / 2 && rect.bottom >= innerHeight / 2 && current === section.getAttribute('data-scene');
+        running ||= section.querySelector('.starlight[data-running="true"]') !== null;
         frames++;
       } while (frames < 3 || performance.now() < until);
-      return { stayed, starFills };
+      return { stayed, running, starFills };
     } finally { prototype.fill = fill; }
   });
 }
@@ -168,7 +169,7 @@ test('all twenty small previews keep the composition, description and text of th
     await expect(image).toHaveAttribute('src', deployPath + 'portrait/preview/' + name);
     await expect(scene.locator('[data-illustration-motion]')).toHaveCount(0);
     await expect(scene.locator('.camera')).toHaveCSS('transform', 'none');
-    expect(await observePreview(scene), 'Preview stays at scene ' + id + ' without painting stars').toEqual({ stayed: true, starFills: 0 });
+    expect(await observePreview(scene), 'Preview stays at scene ' + id + ' without painting stars').toEqual({ stayed: true, running: false, starFills: 0 });
     const full = await readFile('public/portrait/' + name);
     const measured = await image.evaluate(async (small: HTMLImageElement, bytes) => {
       const original = new Image();
