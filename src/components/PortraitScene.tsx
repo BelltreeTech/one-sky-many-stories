@@ -2,6 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { asset, chapters, type Scene } from '../data/edition'
 import { ParticleEngine } from '../engine/ParticleEngine'
 import { attachPortraitTimeline, attachTelescopeAperture } from '../engine/portraitTimeline'
+import { CinematicShot, SceneWeather, warmEstablishingShot } from './CinematicShot'
+import { MythMotion } from './MythMotion'
+import { MatarikiMotion } from './MatarikiMotion'
+import { HillsideMotion } from './HillsideMotion'
 import { IllustrationMotion } from './IllustrationMotion'
 import { portraitBeats } from '../engine/typographyReveal'
 import { portraitDimensions, portraitDirections, portraitFile } from '../data/portrait'
@@ -82,6 +86,9 @@ export function PortraitScene({ scene, near, animate, current }: { scene: Scene;
   const lens = useRef<HTMLSpanElement>(null)
   const followsScroll = animate && near
   const animateFullArt = followsScroll && !fallback && loadedSource === src
+  useEffect(() => {
+    if (near && !animate && !fallback && loadedSource === src) warmEstablishingShot(scene.id)
+  }, [near, animate, fallback, loadedSource, src, scene.id])
   useLayoutEffect(() => {
     if (followsScroll && lens.current) return attachTelescopeAperture(lens.current)
   }, [followsScroll])
@@ -114,6 +121,13 @@ export function PortraitScene({ scene, near, animate, current }: { scene: Scene;
         {scene.id === 11 && <span className="afterglow" data-wind="still" hidden={!near || fallback}
           style={{ '--plate': near && !fallback ? 'url(' + src + ')' : undefined } as CSSProperties} aria-hidden="true">
           <i className="drifting-cloud" /><i className="sleeve-tip" /><i className="hair-tip" />
+        </span>}
+        {animateFullArt && <span className="cinematic-art" aria-hidden="true">
+          {scene.id <= 8 && <HillsideMotion id={scene.id} />}
+          {scene.id >= 9 && scene.id <= 12 && <MythMotion id={scene.id} />}
+          {scene.id >= 13 && <MatarikiMotion id={scene.id} />}
+          <SceneWeather id={scene.id} />
+          <CinematicShot id={scene.id} source={src} />
         </span>}
       </span>
     </span>

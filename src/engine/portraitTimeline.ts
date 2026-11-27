@@ -27,6 +27,7 @@ export function attachPortraitTimeline(scene: HTMLElement, id: number, motion: b
   const stage = scene.querySelector<HTMLElement>('.portrait-stage')!
   const direction = portraitDirections[id]
   const wind = scene.querySelector<HTMLElement>('.afterglow')
+  let lastCinematicPose = -1
   let priorY = window.scrollY
   let gustFrame = 0
   let lastGust = 0
@@ -50,6 +51,23 @@ export function attachPortraitTimeline(scene: HTMLElement, id: number, motion: b
     const frame = window.innerHeight
     const bounds = stage.getBoundingClientRect()
     const progress = between(frame - bounds.top, 0, bounds.height + frame)
+    // A thumb stroke traverses the main action while the picture is in view.
+    // Bound the stroke in CSS pixels on a wide iPad as well as a short phone.
+    const stroke = Math.max(255, Math.min(455, frame * .53))
+    const centered = frame * .5 - (bounds.top + bounds.height * .5)
+    let action = between(centered, -stroke * .5, stroke * .5)
+    if (id === 1) action = between(window.scrollY, 0, stroke * .74)
+    if (id === 20) {
+      // The last page can run out of scroll before the artwork crosses the
+      // screen center. The final sentence and the final wide shot land together.
+      const remaining = scene.getBoundingClientRect().bottom - frame
+      action = Math.max(action, 1 - between(remaining, 0, stroke * .67))
+    }
+    const pose = Math.round(10000 * action)
+    if (pose !== lastCinematicPose) {
+      stage.style.setProperty('--cinematic-progress', String(pose / 10000))
+      lastCinematicPose = pose
+    }
     let scale = direction.start + (direction.end - direction.start) * progress
     const dy = direction.rise * (progress - .5) * 100
     if (id === 8) {
@@ -96,6 +114,7 @@ export function attachPortraitTimeline(scene: HTMLElement, id: number, motion: b
       wind.dataset.wind = 'still'
       wind.style.removeProperty('--gust')
     }
+    stage.style.removeProperty('--cinematic-progress')
     scene.style.removeProperty('--background-exposure')
     camera.style.removeProperty('opacity')
     camera.style.removeProperty('transform')

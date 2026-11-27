@@ -1,0 +1,209 @@
+.matariki-motion {
+  --p: var(--cinematic-progress, 0);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.matariki-motion [data-detail] {
+  position: absolute;
+  display: block;
+  background-image: var(--matariki-paint);
+  background-repeat: no-repeat;
+  background-size: 400% 500%;
+}
+
+/* Noah's lake emerges through the bank of night, and the edge of the water
+   catches the last of the moving light as the memory opens. */
+.matariki-motion [data-detail="night-over-memory"] {
+  left: 41%; top: 7%; width: 67%; height: 30%;
+  opacity: clamp(0, calc(1.1 - var(--p) * 1.48), 1);
+}
+.matariki-motion [data-detail="memory-cloud"] {
+  left: 31%; top: 15%; width: 76%; height: 20%;
+  transform: translate(calc(var(--p) * 25%), calc(17% - var(--p) * 70%)) rotate(-11deg);
+  opacity: calc(.92 - var(--p) * .35);
+}
+.matariki-motion [data-detail="memory-water"] {
+  left: 46%; top: 26.8%; width: 53%; height: 4.4%;
+  transform: scaleX(calc(.6 + var(--p) * .62));
+  opacity: clamp(0, calc(var(--p) * 1.5 - .15), .86);
+}
+
+/* The light rises behind Noah's finger. Nearer strokes spread below the
+   distant reflection; neither band crosses his sleeve or the shoreline. */
+.matariki-motion [data-detail="dawn-sill"] {
+  left: 0; top: 0; width: 100%; height: 75.7%;
+  opacity: clamp(0, calc(var(--p) * 1.18 - .04), 1);
+  mask-image: radial-gradient(ellipse at 85% 64%, #000 calc(var(--p) * 80% + 3%),
+    transparent calc(var(--p) * 123% + 26%));
+}
+.matariki-motion [data-detail="far-water"] {
+  left: 52%; top: 55.8%; width: 57%; height: 8%;
+  transform: translateX(calc(5% - var(--p) * 12%)) scaleX(calc(.65 + var(--p) * .7));
+  opacity: calc(.7 + var(--p) * .28);
+}
+.matariki-motion [data-detail="breaking-water"] {
+  left: 53%; top: 59%; width: 56%; height: 12.8%;
+  transform-origin: 50% 0;
+  transform: translateY(calc(var(--p) * 18%)) scale(calc(.54 + var(--p) * .72), calc(.44 + var(--p) * .75));
+  opacity: calc(.62 + var(--p) * .37);
+}
+
+/* Light moves like the fabric already painted beneath the figures.
+   The broad hems stay below their faces; the sleeve stays at the skyward hand. */
+.matariki-motion [data-detail="outer-mantle"] {
+  left: -9%; top: 54%; width: 115%; height: 19%;
+  transform-origin: 7% 11%;
+  transform: translateY(calc(19% - var(--p) * 54%)) rotate(calc(5deg - var(--p) * 12deg)) scaleY(calc(.72 + var(--p) * .58));
+  opacity: .9;
+}
+.matariki-motion [data-detail="inner-mantle"] {
+  left: -7%; top: 55%; width: 106%; height: 23%;
+  transform: translate(calc(6% - var(--p) * 13%), calc(var(--p) * 29% - 4%)) rotate(calc(-14deg + var(--p) * 14deg));
+  opacity: .91;
+}
+.matariki-motion [data-detail="trailing-sleeve"] {
+  left: -21%; top: 20.5%; width: 50%; height: 13%;
+  transform-origin: 85% 50%;
+  transform: rotate(calc(10deg - var(--p) * 27deg)) scaleY(calc(.72 + var(--p) * .57));
+  opacity: .77;
+}
+
+/* The nested fern pinnae rise from two roots on the river bank. Their tips
+   move farther than their feet, so the plants stay rooted with reverse scroll. */
+.matariki-motion [data-detail="new-frond"] {
+  left: 27%; top: 53%; width: 26%; height: 21%;
+  transform-origin: 36% 100%;
+  transform: rotate(calc(28deg - var(--p) * 47deg)) scaleY(calc(.65 + var(--p) * .36));
+}
+.matariki-motion [data-detail="lower-frond"] {
+  left: 35%; top: 63%; width: 25%; height: 16%;
+  transform-origin: 36% 100%;
+  transform: rotate(calc(-22deg + var(--p) * 33deg)) scaleY(calc(.75 + var(--p) * .28));
+}
+.matariki-motion [data-detail="river-current"] {
+  left: 49%; top: 48%; width: 52%; height: 17%;
+  transform: translate(calc(8% - var(--p) * 14%), calc(-6% + var(--p) * 20%)) skewX(-13deg);
+  opacity: calc(.53 + var(--p) * .35);
+}
+
+/* Warm vapour splits into translucent filaments. The lower edges stay on
+   their respective dishes as the columns lean, lengthen, and untwist. */
+.matariki-motion [data-detail="bowl-steam"] {
+  left: 54.6%; top: 32.1%; width: 27.4%; height: 18%;
+  transform-origin: 50% 100%;
+  transform: skewX(calc(-18deg + var(--p) * 35deg)) scaleY(calc(.56 + var(--p) * .56));
+  opacity: calc(.87 - var(--p) * .16);
+}
+.matariki-motion [data-detail="bowl-wisp"] {
+  left: 57.1%; top: 34.1%; width: 21%; height: 16%;
+  transform-origin: 50% 100%;
+  transform: skewX(calc(15deg - var(--p) * 29deg)) scaleY(calc(.9 - var(--p) * .28));
+  opacity: calc(.4 + var(--p) * .28);
+}
+.matariki-motion [data-detail="pot-steam"] {
+  left: 51%; top: 43.5%; width: 25.5%; height: 17.9%;
+  transform-origin: 50% 100%;
+  transform: skewX(calc(16deg - var(--p) * 28deg)) scaleY(calc(.69 + var(--p) * .32));
+  opacity: .71;
+}
+
+/* These patches contain the original paper grain at the actual graphite
+   dots. The pencil marks below are the original three sketches, revealed
+   from left to right as a whole leaf turns across the spread. */
+.matariki-motion [data-detail="undrawn-paper"] {
+  left: 35%; top: 48%; width: 39.2%; height: 14.2%;
+  mask-image: linear-gradient(105deg,
+    transparent calc(-36% + var(--p) * 153%),
+    #000 calc(-19% + var(--p) * 153%));
+}
+/* The dimensions and the lean of the hinge come from the painted folio.
+   Both faces include the original grain. The front of Luna's hand is
+   restored above the moving leaf, so the pencil and her grip stay together. */
+.notebook-hinge {
+  position: absolute;
+  left: 55.85%; top: 44.77%; width: 24.60%; height: 24.21%;
+  transform-origin: 0 0;
+  transform: skewX(-6.83deg);
+  perspective: 470px;
+  perspective-origin: 50% 45%;
+}
+.notebook-strip {
+  --bend: sin(var(--p) * 180deg);
+  position: absolute;
+  left: 100%; top: 0; width: 100%; height: 100%;
+  transform-origin: 0 50%;
+  transform-style: preserve-3d;
+  transform: rotateY(calc(-92deg / (var(--strips) - 1) * var(--bend)));
+}
+.notebook-hinge > .notebook-strip {
+  left: 0; width: calc(100% / var(--strips));
+  transform: rotateY(calc(-7deg - var(--p) * 169deg + 48deg * var(--bend)));
+}
+.matariki-motion [data-detail="turning-page"],
+.matariki-motion [data-detail="back-of-page"] {
+  top: 0; left: calc(-100% * var(--strip)); width: calc(100% * var(--strips)); height: 100%;
+  clip-path: inset(0 calc(100% - (var(--strip) + 1) * 100% / var(--strips) - .09%) 0 calc(var(--strip) * 100% / var(--strips) - .09%));
+  --front-until: calc(.685 - var(--strip) * .043);
+  --closed: clamp(0, calc(10 - var(--p) * 10), 1);
+}
+.matariki-motion [data-detail="turning-page"] {
+  opacity: calc(clamp(0, (var(--front-until) - var(--p)) * 70, 1) * var(--closed));
+  filter: brightness(calc(1 - var(--bend) * (.09 + var(--strip) * .0135)));
+}
+.matariki-motion [data-detail="back-of-page"] {
+  opacity: calc(clamp(0, (var(--p) - var(--front-until) + .012) * 70, 1) * var(--closed));
+  filter: brightness(calc(1 - var(--bend) * (.32 - var(--strip) * .011)));
+}
+.matariki-motion [data-detail="paper-shadow"] {
+  left: 55.85%; top: 44.77%; width: 24.6%; height: 24.21%;
+  transform-origin: 0 0;
+  transform: skewX(-6.83deg) translateX(calc(1% - var(--p) * 92%)) scaleX(calc(.81 + .28 * sin(var(--p) * 180deg)));
+  opacity: clamp(0, calc(.10 + .74 * sin(var(--p) * 180deg)), 1);
+}
+.matariki-motion [data-detail="pencil-grip"] {
+  left: 40.93%; top: 60.15%; width: 19.25%; height: 12.93%;
+  opacity: clamp(0, calc(sin(var(--p) * 180deg) * 4), 1);
+}
+
+/* Follow the switchbacks printed in the plate. The advancing brighter edge
+   gives way to a soft residual reflection on the dirt, then the windows shine. */
+.matariki-motion [data-detail="path-light"] {
+  left: 18%; top: 39%; width: 82%; height: 59%;
+  --leading: calc(117% - var(--p) * 140%);
+  mask-image: linear-gradient(to bottom, transparent calc(var(--leading) - 7%),
+    #000 calc(var(--leading) + 1%), #000 calc(var(--leading) + 10%),
+    rgb(0 0 0 / .23) calc(var(--leading) + 42%));
+}
+.matariki-motion [data-detail="window-light"] {
+  left: 75%; top: 38%; width: 22%; height: 4.7%;
+  transform: scaleX(calc(.5 + var(--p) * .7));
+  opacity: clamp(0, calc(var(--p) * 2.1 - .55), 1);
+}
+
+/* The near stems move against two ranks of cloud. The children's backs and
+   the real cluster remain clear as the foreground and sky part. */
+.matariki-motion [data-detail="far-cloud"] {
+  left: 28%; top: 36%; width: 80%; height: 16%;
+  transform: translate(calc(-17% + var(--p) * 42%), calc(-6% + var(--p) * 15%)) rotate(-5deg);
+  opacity: .76;
+}
+.matariki-motion [data-detail="near-cloud"] {
+  left: -30%; top: 34%; width: 98%; height: 20%;
+  transform: translate(calc(17% - var(--p) * 42%), calc(13% - var(--p) * 21%)) rotate(8deg);
+  opacity: .87;
+}
+.matariki-motion [data-detail="near-flowers"] {
+  left: 74%; bottom: -1.8%; width: 28%; height: 24%;
+  transform-origin: 38% 100%;
+  transform: rotate(calc(10deg - var(--p) * 25deg)) translateX(calc(var(--p) * 3%));
+}
+.matariki-motion [data-detail="left-flowers"] {
+  left: -5.5%; bottom: -.6%; width: 30%; height: 21%;
+  transform-origin: 35% 100%;
+  transform: scaleX(-1) rotate(calc(-5deg + var(--p) * 20deg));
+}
+@media (prefers-reduced-motion: reduce) {
+  .matariki-motion { display: none; }
+}

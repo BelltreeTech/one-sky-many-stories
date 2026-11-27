@@ -84,6 +84,7 @@
   .portrait-passage { font-size: clamp(1.125rem,calc(.96rem + 1cqw),1.45rem); }
 }
 .portrait-sheet { position: relative; width: 100%; height: 100%; }
+.cinematic-art { position: absolute; inset: 0; display: block; pointer-events: none; }
 .portrait-sheet .scene-image { display: block; width: 100%; height: 100%; object-fit: contain; }
 .portrait-passage {
   position: relative; font-size: clamp(1.125rem,calc(.97rem + .76vw),1.48rem);
@@ -123,7 +124,16 @@
 .telescope-view {
   object-fit: contain;
   mask-image: radial-gradient(circle farthest-corner at 46% 44%,
-    black calc(31% + var(--aperture,1) * 76%), transparent calc(47% + var(--aperture,1) * 74%));
+    black calc(8% + var(--aperture,1) * 100%), transparent calc(17% + var(--aperture,1) * 100%));
+}
+.lens-field:has(.telescope-view[data-ready="true"])::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle farthest-corner at 46% 44%,
+    transparent calc(7% + var(--aperture,1) * 100%),
+    #aec7fa50 calc(10% + var(--aperture,1) * 100%),
+    #fff0ca91 calc(10.55% + var(--aperture,1) * 100%),
+    #77629134 calc(12.2% + var(--aperture,1) * 100%),
+    transparent calc(17% + var(--aperture,1) * 100%));
 }
 .portrait-end {
   width: 100%; text-align: center; color: var(--gold); font-size: 14px;
@@ -152,7 +162,7 @@
 @media (prefers-reduced-motion: reduce) {
   .portrait-camera, .telescope-view { transform: none !important; }
   .telescope-view { mask-image: none; }
-  .afterglow { display: none; }
+  .afterglow, .lens-field::after, .cinematic-art { display: none; }
 }
 
 .portrait-stage > .starlight {
