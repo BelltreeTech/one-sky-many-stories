@@ -161,7 +161,8 @@ test('the book stops drawing while only its passage is visible and restores the 
       // Rendering frames and native intersection notifications are separate
       // queues. Observe this same canvas leaving before counting idle paints.
       const outside = new Promise<void>(resolve => {
-        const observer = new IntersectionObserver(([entry]) => {
+        const observer = new IntersectionObserver(entries => {
+          const entry = entries[entries.length - 1]
           if (entry.boundingClientRect.bottom >= 0 || entry.intersectionRect.height > 0) return
           observer.disconnect()
           resolve()
@@ -210,6 +211,49 @@ test('the book appears when an edge-touching canvas first gains visible area', a
   // boundary. Only the geometry of the observer target matters to this test.
   await page.addStyleTag({ content: '#scene-12 .portrait-camera { transform: none !important; }' })
   await stage.evaluate(el => { el.style.transform = 'translateY(50vh)' })
+  // Exercise coalesced notifications with records supplied by the browser
+  // for the same real canvas. Other observers and ordinary deliveries pass through.
+  const batches = await page.evaluateHandle(() => {
+    const Native = window.IntersectionObserver
+    let queued: IntersectionObserverEntry[] | null = null
+    let deliver: IntersectionObserverCallback | undefined
+    let owner: IntersectionObserver | undefined
+    let latestHeight: number | undefined
+    window.IntersectionObserver = class extends Native {
+      constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+        super((entries, observer) => {
+          if (entries[0].target.matches('.leo-book canvas')) {
+            const last = entries[entries.length - 1]
+            latestHeight = last.isIntersecting ? last.intersectionRect.height : -1
+            if (queued) {
+              queued.push(...entries)
+              deliver = callback
+              owner = observer
+              return
+            }
+          }
+          callback(entries, observer)
+        }, options)
+      }
+    }
+    return {
+      hold() { queued = [] },
+      count() { return queued?.length ?? 0 },
+      height() { return latestHeight },
+      flush() {
+        const entries = queued!
+        queued = null
+        const canvas = entries[0].target as HTMLCanvasElement
+        const ctx = canvas.getContext('2d')!
+        const clear = ctx.clearRect
+        let draws = 0
+        ctx.clearRect = new Proxy(clear, { apply(fn, dest, args) { draws++; return Reflect.apply(fn, dest, args) } })
+        try { deliver!(entries, owner!) } finally { ctx.clearRect = clear }
+        return { draws, heights: entries.map(e => e.intersectionRect.height) }
+      },
+      restore() { queued = null; window.IntersectionObserver = Native },
+    }
+  })
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await expect(stage.locator('.leo-book img')).toHaveAttribute('data-decoded', 'true')
 
@@ -223,9 +267,38 @@ test('the book appears when an edge-touching canvas first gains visible area', a
     const rect = canvas.getBoundingClientRect()
     return Math.max(0, Math.min(innerHeight, rect.bottom) - Math.max(0, rect.top))
   }, gap)
-  expect(await enter(6)).toBe(0)
-  expect(await enter(0)).toBe(0)
-  expect((await visibleBookPixels(stage)).painted).toBe(0)
+  try {
+    expect(await enter(6)).toBe(0)
+    expect(await enter(0)).toBe(0)
+    expect((await visibleBookPixels(stage)).painted).toBe(0)
+    expect(await enter(-8)).toBe(8)
+    await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeGreaterThan(1800)
+    const paintedAfterBatch: boolean[] = []
+    for (const gaps of [[0, -8], [-8, 0]]) {
+      // Cross the positive threshold both ways so each delivery contains
+      // two genuine records even on engines that omit a zero-area first contact.
+      const start = gaps[0] === 0 ? -8 : 6
+      await enter(start)
+      await expect.poll(() => batches.evaluate(b => b.height())).toBe(start < 0 ? 8 : -1)
+      await batches.evaluate(b => b.hold())
+      await enter(gaps[0])
+      await expect.poll(() => batches.evaluate(b => b.count())).toBe(1)
+      await enter(gaps[1])
+      await expect.poll(() => batches.evaluate(b => b.count())).toBe(2)
+      const result = await batches.evaluate(b => b.flush())
+      expect(result.heights).toEqual(gaps.map(gap => Math.abs(gap)))
+      paintedAfterBatch.push(result.draws > 0)
+    }
+    expect(paintedAfterBatch, 'Only the latest record determines whether the canvas paints').toEqual([true, false])
+  } finally {
+    await batches.evaluate(b => b.restore())
+    await batches.dispose()
+  }
+  // The last batch ended at the edge. An ordinary native entry must fill
+  // the canvas again, even if the compositor discarded its old backing store.
+  await stage.locator('.leo-book canvas').evaluate((canvas: HTMLCanvasElement) => {
+    canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height)
+  })
   expect(await enter(-8)).toBe(8)
   await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeGreaterThan(1800)
 })

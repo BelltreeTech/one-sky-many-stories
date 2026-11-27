@@ -67,7 +67,8 @@ export function attachLeoBook(stage: HTMLElement) {
   // Keep its scroll position, and paint that pose when its own crop re-enters.
   // Edge contact alone counts as an intersection. The positive threshold
   // notifies us again when the first painted pixels enter.
-  const viewport = new IntersectionObserver(([entry]) => {
+  const viewport = new IntersectionObserver(entries => {
+    const entry = entries[entries.length - 1]
     visible = entry.isIntersecting && entry.intersectionRect.width > 0 && entry.intersectionRect.height > 0
     if (visible) paint(performance.now())
     else stopSettling()
