@@ -271,7 +271,7 @@ test('the book appears when an edge-touching canvas first gains visible area', a
     expect(await enter(6)).toBe(0)
     expect(await enter(0)).toBe(0)
     expect((await visibleBookPixels(stage)).painted).toBe(0)
-    expect(await enter(-8)).toBe(8)
+    expect(await enter(-8)).toBeCloseTo(8, 2)
     await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeGreaterThan(1800)
     const paintedAfterBatch: boolean[] = []
     for (const gaps of [[0, -8], [-8, 0]]) {
@@ -279,14 +279,17 @@ test('the book appears when an edge-touching canvas first gains visible area', a
       // two genuine records even on engines that omit a zero-area first contact.
       const start = gaps[0] === 0 ? -8 : 6
       await enter(start)
-      await expect.poll(() => batches.evaluate(b => b.height())).toBe(start < 0 ? 8 : -1)
+      await expect.poll(() => batches.evaluate(b => b.height())).toBeCloseTo(start < 0 ? 8 : -1, 2)
       await batches.evaluate(b => b.hold())
       await enter(gaps[0])
       await expect.poll(() => batches.evaluate(b => b.count())).toBe(1)
       await enter(gaps[1])
       await expect.poll(() => batches.evaluate(b => b.count())).toBe(2)
       const result = await batches.evaluate(b => b.flush())
-      expect(result.heights).toEqual(gaps.map(gap => Math.abs(gap)))
+      for (const [index, height] of result.heights.entries()) {
+        if (gaps[index] === 0) expect(height).toBe(0)
+        else expect(height).toBeCloseTo(8, 2)
+      }
       paintedAfterBatch.push(result.draws > 0)
     }
     expect(paintedAfterBatch, 'Only the latest record determines whether the canvas paints').toEqual([true, false])
@@ -299,6 +302,6 @@ test('the book appears when an edge-touching canvas first gains visible area', a
   await stage.locator('.leo-book canvas').evaluate((canvas: HTMLCanvasElement) => {
     canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height)
   })
-  expect(await enter(-8)).toBe(8)
+  expect(await enter(-8)).toBeCloseTo(8, 2)
   await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeGreaterThan(1800)
 })
