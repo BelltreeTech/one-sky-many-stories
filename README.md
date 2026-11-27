@@ -97,6 +97,10 @@ npm test
 
 カットは `src/components/CinematicShot.tsx`、絵に重ねる動きは `HillsideMotion.tsx`、`MythMotion.tsx`、`MatarikiMotion.tsx` で管理する。視野に入った場面だけに動く層を置き、カメラはブラウザのスクロール位置に従う。iOSの「視差効果を減らす」設定では縦原画と英文を静止画で読める。新しいカットと雲の素材は内蔵ImageGenで制作し、WebPに変換した。[制作仕様](specs/portrait-edition/spec.md#映画の画角と遠景)
 
+11月27日の制作版 `07f7ec8` は型検査・配布ビルドと168件のPlaywright試験に合格した。iPhone 16相当の393 × 852、iPad WebKit、デスクトップChromiumで、六つの星の実際の発光、スロー回線で届いた絵、文字拡大、逆送り、結末の遠景を確認した。ローカルで配布する114ファイルを照合し、20場面の実画面を検収した。
+
+別に、iOS 26.5のiPhone 16シミュレーターのSafariで、第8・12場面から各3回指を離すフリックを行った。慣性による移動は333〜336 CSS px。動いている間に測った英文と絵の枠の移動量の差は全6回で0 CSS pxだった。各試行の `requestAnimationFrame` 間隔の95パーセンタイルは17 ms、最大は28 ms。物理iPhone上のフレーム表示や発熱は未測定。
+
 ### 連続縦読み版の検証
 
 11月27日朝の公開版 `657f277` では、第5場面「Subaru」のリンクを開き、表紙まで戻ってから再読み込みしても、表紙から読み続けられた。iOS 26.5のiPhone 16シミュレーター上のSafariで確認した。公開URLのPlaywright検査は102件すべて合格し、配信された全100ファイルが本番ビルドとバイト単位で一致した。[第5場面を開く](https://belltreetech.github.io/one-sky-many-stories/#scene-05)・[Safariと画像の通信復帰の検証記録](docs/portrait-qa.md#2026年11月27日朝の公開版-657f277)
