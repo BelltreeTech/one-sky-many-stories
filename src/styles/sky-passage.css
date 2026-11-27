@@ -1,0 +1,55 @@
+.sky-passage {
+  position: absolute; inset: 0; display: block; pointer-events: none; overflow: clip; container-type: size;
+  --time: var(--cinematic-progress, 0);
+}
+.sky-passage img { visibility: hidden; }
+.sky-passage img[data-ready="true"] { visibility: visible; }
+.sky-passage img[data-late="true"] { animation: sky-develop .32s ease-out both; }
+@keyframes sky-develop { from { opacity: 0; } to { opacity: 1; } }
+
+/* Aim the approach at the single light on the far ridge. The foreground
+   cloud banks move in opposite directions before the dissolve to the lamp. */
+[data-sky-passage="cloud-descent"] {
+  --flight: clamp(0, calc(var(--time) * 2.18), 1);
+  opacity: clamp(0, calc((.48 - var(--time)) * 4.6), 1);
+}
+.valley-flight {
+  display: block; width: 100%; height: 100%; object-fit: cover; object-position: 49% 64%;
+  transform-origin: 49% 65%;
+  transform: scale(calc(1.025 + var(--flight) * .66)) rotate(calc(-1deg + var(--flight) * 1.7deg));
+}
+.cloud-wing {
+  display: none; position: absolute; width: 103%; height: 30%; background-size: 100% 100%;
+  background-repeat: no-repeat; opacity: calc(.84 - var(--flight) * .5);
+}
+.sky-passage:has(.valley-flight[data-ready="true"]) .cloud-wing { display: block; }
+.cloud-wing-west { left: -36%; top: 45%; transform: translate3d(calc(var(--flight) * -58cqw),calc(var(--flight) * 22cqh),0) rotate(16deg); }
+.cloud-wing-east { right: -46%; top: 34%; transform: translate3d(calc(var(--flight) * 49cqw),calc(var(--flight) * -14cqh),0) rotate(-17deg) scaleX(-1); }
+
+[data-sky-passage="cherry-wind"] {
+  --pass: clamp(0, calc((var(--time) - .04) * 1.55), 1);
+  opacity: clamp(0, calc((.93 - var(--time)) * 6), 1);
+}
+.cherry-bough {
+  position: absolute; left: -3%; top: 2%; width: 95%; height: auto;
+  transform-origin: top left;
+  transform: translate3d(calc(var(--pass) * -42cqw),calc(var(--pass) * -14cqh),0)
+             rotate(calc(5deg - var(--pass) * 14deg)) scale(calc(1.18 - var(--pass) * .26));
+}
+.near-petal, .petal-curl { display: block; aspect-ratio: 1; }
+.near-petal {
+  position: absolute;
+  --travel: clamp(0, calc((var(--time) - var(--start)) * 1.85), 1);
+  opacity: min(clamp(0, calc(var(--travel) * 8), 1), clamp(0, calc((1 - var(--travel)) * 7), 1));
+  transform: translate3d(calc(var(--drift) * var(--travel)),calc(var(--fall) * var(--travel) * var(--travel)),0);
+}
+.petal-curl {
+  width: 100%; overflow: hidden;
+  transform: rotate(calc(var(--travel) * var(--spin))) scaleX(calc(1 - var(--travel) * .68));
+}
+.petal-curl img { display: block; width: 200%; height: 200%; max-width: none; transform: translate(var(--tile-x),var(--tile-y)); }
+
+/* Even the little blossoms further back leave the sky when the breeze dies. */
+[data-cinematic-scene="5"] .windborne { opacity: clamp(0,calc((.96 - var(--p)) * 3),1); }
+
+@media (prefers-reduced-motion: reduce) { .sky-passage { display: none; } }

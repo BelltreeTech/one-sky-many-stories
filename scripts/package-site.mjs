@@ -15,7 +15,8 @@ const required = new Set(['index.html', 'star.svg', 'atmosphere/night-sky.webp',
   'motion/ridge-runners.webp', 'motion/unwritten-sky.webp', 'motion/myth-sky.webp', 'motion/sisters-ascent.webp',
   'motion/pegasus-gilt.webp', 'motion/matariki-paint.webp',
   'cinema/prologue.webp', 'cinema/veranda.webp', 'cinema/myth.webp', 'cinema/lake.webp',
-  'cinema/valley.webp', 'cinema/cloudbank.webp']);
+  'cinema/valley.webp', 'cinema/cloudbank.webp', 'cinema/cloud-descent.webp',
+  'cinema/cherry-bough.webp', 'cinema/cherry-petals.webp']);
 for (const scene of story.scenes) {
   const filename = String(scene.id).padStart(2, '0') + '.webp';
   required.add(scene.image);

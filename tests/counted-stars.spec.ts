@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { openBook, sceneAt, test } from './reader-harness';
 import { stagePose } from './playback-harness';
+import { changedPixels } from './visible-pixels';
 
 // Capture what reaches the reader. An opaque camera insert can completely
 // hide a pulse whose underlying DOM geometry and opacity are both correct.
@@ -16,24 +17,7 @@ async function visiblePulsePixels(page: Page, star: Locator) {
   } finally {
     await star.evaluate(node => node.style.removeProperty('visibility'));
   }
-  return page.evaluate(async images => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d')!;
-    for (const [index, png] of images.entries()) {
-      const image = new Image();
-      image.src = 'data:image/png;base64,' + png;
-      await image.decode();
-      if (index === 0) { canvas.width = image.width; canvas.height = image.height; }
-      else ctx.globalCompositeOperation = 'difference';
-      ctx.drawImage(image, 0, 0);
-    }
-    const differences = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    let visible = 0;
-    for (let i = 0; i < differences.length; i += 4) {
-      if (Math.max(differences[i], differences[i + 1], differences[i + 2]) > 8) visible++;
-    }
-    return visible;
-  }, [lit.toString('base64'), unlit.toString('base64')]);
+  return changedPixels(page, lit, unlit, 8);
 }
 
 for (const viewport of [{ width: 393, height: 852 }, { width: 1280, height: 320 }]) {

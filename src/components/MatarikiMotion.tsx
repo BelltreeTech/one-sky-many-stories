@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useRef, type CSSProperties } from 'react'
 import { asset } from '../data/edition'
 import '../styles/matariki-motion.css'
 
@@ -40,13 +40,62 @@ function TurningLeaf() {
   </>
 }
 
-export function MatarikiMotion({ id }: { id: number }) {
+// The distant reflection is almost a single stroke. Toward the shore it
+// breaks into broader, irregular facets of water. Paint this small transparent
+// texture once; the scene clock moves its light across the lake.
+function SunPath() {
+  const surface = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const ctx = surface.current?.getContext('2d')
+    if (!ctx) return
+    const width = ctx.canvas.width, height = ctx.canvas.height
+    let seed = 4141
+    const random = () => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+      return seed / 4294967296
+    }
+    ctx.clearRect(0, 0, width, height)
+    for (let i = 0; i < 230; i++) {
+      const depth = random()
+      const y = 1 + depth * (height - 4)
+      const spread = .05 + .43 * depth
+      const x = width * (.50 + (random() + random() - 1) * spread)
+      const reach = 1.2 + (2 + 15 * depth) * random()
+      const glint = ctx.createLinearGradient(x - reach, 0, x + reach, 0)
+      glint.addColorStop(0, 'rgba(255,170,96,0)')
+      glint.addColorStop(.44, 'rgba(255,208,151,.75)')
+      glint.addColorStop(.58, 'rgba(255,242,191,.90)')
+      glint.addColorStop(1, 'rgba(238,170,174,0)')
+      ctx.fillStyle = glint
+      ctx.globalAlpha = (.48 + random() * .48) * (1 - depth * .44)
+      ctx.beginPath()
+      ctx.ellipse(x, y, reach, .40 + depth * .88, (random() - .5) * .08, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    ctx.globalAlpha = 1
+  }, [])
+  return <canvas ref={surface} className="sun-path" width="280" height="138" />
+}
+
+function LandscapeLights({ id }: { id: number }) {
+  if (id === 14) return <span className="winter-light">
+    <i className="blue-hour" /><i className="dawn-rays" /><i className="sun-rim" /><SunPath />
+  </span>
+  if (id === 20) return <span className="farewell-light">
+    <i className="lantern-falloff" /><i className="passing-star"><i /></i>
+  </span>
+  return <i className="painted-light" />
+}
+
+export function MatarikiMotion({ id, source }: { id: number; source: string }) {
   const motif = motifs[id as IllustratedScene]
   if (!motif) return null
   return <span className="matariki-motion" data-motif={motif.name} aria-hidden="true"
-    style={{ '--matariki-paint': 'url("' + asset('motion/matariki-paint.webp') + '")' } as CSSProperties}>
+    style={{ '--matariki-paint': 'url("' + asset('motion/matariki-paint.webp') + '")',
+      '--portrait-ink': 'url("' + source + '")' } as CSSProperties}>
     {motif.layers.map(([name, tile]) => <i key={name} data-detail={name}
       style={tilePosition(tile)} />)}
     {id === 18 && <TurningLeaf />}
+    <LandscapeLights id={id} />
   </span>
 }

@@ -1,8 +1,8 @@
 /* All movements are registered to the native portrait, independently of the
-   document's position. Reversing the scroll retraces precisely the same pose. */
+   document's position. The entry clock drives each cut to its last frame. */
 .myth-motion {
   position: absolute; inset: 0; display: block; overflow: clip; pointer-events: none;
-  --reading: var(--cinematic-progress, .5);
+  --reading: var(--cinematic-progress, 0);
 }
 .myth-motion > img, .myth-motion > i { position: absolute; display: block; pointer-events: none; }
 .unwritten-sky {
@@ -94,8 +94,8 @@
 .pegasus-reflection {
   /* Rise through the gap between Leo and Noah, then turn toward the cluster. */
   left: calc(58.2% + min(8.7%,var(--glint) * 25%) - max(0%,(var(--glint) - .72) * 7%));
-  top: calc(58% - 38.5% * var(--glint));
-  width: calc(8.4% + 8.4% * var(--glint)); opacity: 0;
+  top: calc(58% - 43.5% * var(--glint));
+  width: calc(8.4% + 17% * var(--glint)); opacity: 0;
   transform: translate(-50%,-50%) rotate(calc(-4deg - var(--glint) * 12deg));
   filter: drop-shadow(0 0 3px #ffcc80);
 }
@@ -106,4 +106,96 @@
   background: radial-gradient(ellipse closest-side,#fff3bf99,#f8c36f57 44%,transparent);
   opacity: var(--shine);
 }
+/* Reflections travel out from the two gold edges of Leo's open book and
+   separate above the landscape printed in the air. */
+.page-reflections, .ascent-currents {
+  position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
+}
+.page-reflections {
+  --spread: clamp(0,calc((var(--reading) - .22) * 1.6),1);
+  transform-origin: 46.5% 59.4%;
+  transform: scale(calc(.21 + .83 * var(--spread)),calc(.28 + .76 * var(--spread)));
+  opacity: clamp(0,min(calc(var(--spread) * 3.2),calc((1 - var(--spread)) * 3.6)),1);
+}
+.page-reflections path { stroke-width: 2.2; }
+.page-reflections path + path { stroke-width: 3.2; }
+.page-horizon {
+  --opening: clamp(0,calc((var(--reading) - .16) * 1.45),1);
+  left: -9%; top: 30%; width: 118%; height: 14%;
+  background: var(--myth-cloud) center / 100% 100% no-repeat,
+    radial-gradient(ellipse 46% 19% at 50% 69%,#ffe4bcbd,#d7aac25e 48%,transparent);
+  filter: sepia(.9) saturate(1.35) brightness(1.3);
+  mask-image: radial-gradient(ellipse 53% 52% at 50% 63%,#000 22%,#000b 67%,transparent);
+  transform-origin: 50% 72%;
+  transform: rotate(-2deg) scale(calc(.12 + 1.04 * var(--opening)),calc(.35 + .75 * var(--opening)));
+  opacity: clamp(0,min(calc(var(--opening) * 3.9),calc((1 - var(--opening)) * 2.8)),.92);
+}
+.ridge-dust-veil {
+  inset: 48% -30% auto 16%; height: 48%;
+  background: var(--myth-cloud) center / 100% 100% no-repeat;
+  transform: translate(calc(8% - var(--reading) * 64%), calc(18% - var(--reading) * 32%)) scaleX(1.38);
+  filter: sepia(.85) saturate(.78);
+  opacity: calc(var(--emerge) * clamp(0,min(calc((var(--reading) - .12) * 2.5),calc((1 - var(--reading)) * 2.4)),.62));
+}
+
+/* Light from the painted cluster opens a path above the ridge. The banks
+   are the same painted cumulus used above the hillside, at a closer scale. */
+.sisters-ascent {
+  --parting: clamp(0,calc((var(--reading) - .045) * 1.2),1);
+  --radiance: clamp(0,min(calc((var(--reading) - .06) * 3.5),calc((1 - var(--reading)) * 2.7)),1);
+  --arrival: clamp(0,min(calc((var(--reading) - .49) * 3.6),calc((1 - var(--reading)) * 4.2)),1);
+}
+.ascent-lightshaft {
+  inset: 0;
+  background: conic-gradient(from 0deg at 76.75% 21.25%,
+    transparent 166deg, #9aabfc24 174deg, transparent 178deg,
+    #c9c4ff44 185deg, #ecd4f357 190deg, transparent 195deg,
+    #adb7ff3a 202deg, #e4cec779 210deg, #c8b7e53a 215deg,
+    transparent 222deg, #a2adff24 227deg, transparent 233deg);
+  mask-image: radial-gradient(ellipse 86% 67% at 76.75% 21.25%, #000 2%,#000c 48%, transparent 100%);
+  transform-origin: 76.75% 21.25%;
+  transform: rotate(calc(10deg - 16deg * var(--parting))) scaleX(calc(.78 + .5 * var(--parting)));
+  opacity: var(--radiance);
+}
+.ascent-currents g {
+  --thread: clamp(0,calc((var(--reading) - var(--wake-delay)) * 1.35),1);
+  stroke-dasharray: .46 1.55;
+  stroke-dashoffset: calc(.46 - var(--thread) * 1.49);
+  opacity: clamp(0,min(calc(var(--thread) * 4),calc((1 - var(--thread)) * 3)),1);
+}
+.silk-wash { stroke-width: 8; opacity: .19; }
+.silk-edge { stroke-width: 1.3; opacity: .84; }
+.ascent-clouds { position: absolute; inset: 0; pointer-events: none; }
+.ascent-clouds i {
+  position: absolute; left: -52%; top: 48%; width: 130%; height: 44%;
+  background: var(--myth-cloud) center / 100% 100% no-repeat;
+  transform: translate3d(calc(-44% * var(--parting)),calc(30% * var(--parting)),0);
+  opacity: calc(.94 - .52 * var(--parting));
+}
+.ascent-clouds i + i {
+  left: 34%; top: 58%; width: 111%; height: 36%;
+  transform: translate3d(calc(61% * var(--parting)),calc(21% * var(--parting)),0) scaleX(-1);
+}
+.ascent-star, .pegasus-arrival {
+  left: 76.75%; top: 21.25%; width: 62%; height: 15%;
+  transform: translate(-50%,-50%) rotate(-12deg) scale(calc(.14 + 1.05 * var(--arrival)));
+  background: radial-gradient(ellipse 46% 2.2% at 50% 50%, #fffce2 0%,#ffd6a4a1 34%,transparent),
+    radial-gradient(ellipse 4% 45% at 50% 50%,#f6f4ffca,transparent),
+    radial-gradient(ellipse closest-side at 50% 50%,#ffe8c5b3,#d8c4fd59 21%,#889af32b 52%,transparent);
+  opacity: var(--arrival);
+}
+.pegasus-arrival {
+  --arrival: clamp(0,min(calc((var(--reading) - .68) * 5.8),calc((1 - var(--reading)) * 6)),1);
+  left: 63.75%; top: 14.5%; width: 50%; height: 10%;
+}
+
+/* High, distant cloud clears the flight path above the closed book. The
+   cloud painting includes transparent sky above and below its crown. */
+[data-scene="12"] .cloud-plane i {
+  inset: auto; left: -8%; bottom: 10%; width: 71%; height: auto; aspect-ratio: 1.8;
+  mask-image: radial-gradient(ellipse 49% 29% at 50% 53%,#000 12%,#000a 68%,transparent);
+  transform: translate3d(calc(86% - var(--cue) * 94%),0,0);
+  opacity: calc(.72 - var(--cue) * .39);
+}
+
 @media (prefers-reduced-motion: reduce) { .myth-motion { display: none; } }

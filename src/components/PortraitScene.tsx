@@ -3,6 +3,7 @@ import { asset, chapters, type Scene } from '../data/edition'
 import { ParticleEngine } from '../engine/ParticleEngine'
 import { attachPortraitTimeline, attachTelescopeAperture } from '../engine/portraitTimeline'
 import { CinematicShot, SceneWeather, warmEstablishingShot } from './CinematicShot'
+import { SkyPassage } from './SkyPassage'
 import { MythMotion } from './MythMotion'
 import { MatarikiMotion } from './MatarikiMotion'
 import { HillsideMotion, OpeningMeteor } from './HillsideMotion'
@@ -125,9 +126,10 @@ export function PortraitScene({ scene, near, animate, current }: { scene: Scene;
         {animateFullArt && <span className="cinematic-art" aria-hidden="true">
           {scene.id <= 8 && <HillsideMotion id={scene.id} />}
           {scene.id >= 9 && scene.id <= 12 && <MythMotion id={scene.id} />}
-          {scene.id >= 13 && <MatarikiMotion id={scene.id} />}
+          {scene.id >= 13 && <MatarikiMotion id={scene.id} source={src} />}
           <SceneWeather id={scene.id} />
           <CinematicShot id={scene.id} source={src} />
+          {(scene.id === 1 || scene.id === 5) && <SkyPassage id={scene.id} />}
           {first && <OpeningMeteor />}
         </span>}
       </span>

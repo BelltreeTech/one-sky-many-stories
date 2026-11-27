@@ -81,6 +81,14 @@ npm test
 
 テストにはPython 3も使う。Playwrightが一時静的サーバーを127.0.0.1:4182で起動し、実際の `dist/` を `/one-sky-many-stories/` にマウントする。スクリーンショットと失敗時のトレースは、それぞれ `artifacts/webtoon-qa/screenshots/` と `artifacts/webtoon-qa/test-results/` に出力する。
 
+### 雲間から谷へ向かうカットと、七姉妹の上昇
+
+冒頭の小さな灯りは、雲の間から見ると谷に浮かぶ一点。そこに向かって降りると、ルナの手にあるランタンへつながる。第5場面では縁側の手前を桜の枝が大きくよぎる。第11場面では雲が左右に分かれ、七人の背後を三筋の光が昇って原画の星に集まる。第14場面では山際の朝日が湖の手前まで届き、結末では三人から引いたカメラが銀河と町明かりを一つの画面に収める。[七姉妹](https://belltreetech.github.io/one-sky-many-stories/#scene-11)・[湖の夜明け](https://belltreetech.github.io/one-sky-many-stories/#scene-14)・[結末の谷](https://belltreetech.github.io/one-sky-many-stories/#scene-20)
+
+空撮の谷、前景の桜、舞う花びらは内蔵ImageGenで描き起こしたWebP素材。冒頭と縁側の演出を `SkyPassage.tsx`、神話を `MythMotion.tsx`、朝の光と結末を `MatarikiMotion.tsx` に置いている。
+
+iOS 26.5のiPhone 16シミュレーター上のSafariでは、第11場面で指を離した後に158 CSS px進み、慣性が止まってから2.71秒、文の位置を保ったまま演出が続いた。第18場面ではそれぞれ176 CSS pxと2.14秒だった。iPhone相当のWebKitでも5場面を実時間で計測し、各場面のフレーム要求間隔の95パーセンタイルは17〜18 ms、最大は52 msだった。物理端末のGPU描画時間や発熱は未計測。
+
 ### ひと送りで再生する版の検証
 
 iPhone・iPad相当のWebKitで、全20枚の縦絵と独立した望遠鏡の視野を表示し、同じスクロール位置で途中の絵から終端まで進むことを確認した。動作軽減時には同じ21箇所で時間を空けた画面写真の画素が一致した。両条件で23箇所の英文を原稿と照合した。iPhone 16シミュレーターのSafariでは、七姉妹が昇る途中に別アプリを開き、約4秒後に戻って同じ姿と読書位置から再開することを確認した。

@@ -207,3 +207,159 @@
 @media (prefers-reduced-motion: reduce) {
   .matariki-motion { display: none; }
 }
+
+/* A low winter sun first lights the snow line, then the near side of each
+   wave. Keep the left-hand silhouette and the stars above Noah's finger clear. */
+.winter-light, .winter-light > i, .farewell-light, .matariki-motion > .painted-light {
+  position: absolute; inset: 0; display: block; pointer-events: none;
+}
+.winter-light { overflow: hidden; }
+.winter-light .blue-hour {
+  background: linear-gradient(180deg,#09144895 0%,#111856b5 32%,#26274880 55%,#19345791 70%,transparent 92%);
+  opacity: clamp(0,calc(1.10 - var(--p) * 1.55),1);
+}
+.winter-light .dawn-rays {
+  --break: clamp(0, calc((var(--p) - .10) * 1.9), 1);
+  background: conic-gradient(from 264deg at 89% 52%,
+    transparent 0deg, #ffb06d10 6deg, #ffca8c80 14deg, transparent 24deg,
+    #ffc99a15 37deg, #ffd7a15e 45deg, transparent 57deg,
+    #ffe4b681 68deg, #ffebc737 74deg, transparent 88deg,
+    #fff0b144 102deg, transparent 113deg);
+  mask-image: radial-gradient(ellipse 76% 41% at 89% 52%, #000 6%, #0009 49%, transparent 98%);
+  clip-path: polygon(0 0,100% 0,100% 49%,95% 50%,89% 50.2%,82% 50%,76% 51%,68% 52%,58% 51%,52% 49%,0 44%);
+  transform-origin: 89% 52%;
+  transform: rotate(calc(-8deg + 8deg * var(--break))) scaleY(calc(.70 + .30 * var(--break)));
+  opacity: calc(var(--break) * (.98 - .40 * var(--p)));
+}
+.winter-light .sun-rim {
+  left: 53%; top: 36%; width: 47%; height: 27%; inset-inline-end: auto; bottom: auto;
+  background: radial-gradient(ellipse 58% 30% at 77% 56%,#ffedbdc9, #ffc07389 21%,#ff9c683b 50%,transparent 95%);
+  mask-image: linear-gradient(to bottom,#000 49%,#000b 58%,transparent 70%);
+  transform-origin: 77% 56%;
+  transform: scaleX(calc(.30 + var(--p) * 1.14)) scaleY(calc(.28 + var(--p) * .96));
+  opacity: clamp(0,calc((var(--p) - .17) * 2.1),.94);
+}
+.winter-light .sun-path {
+  position: absolute; left: 60%; top: 55%; width: 43%; height: 16%;
+  transform-origin: 51% 0%;
+  transform: scaleX(calc(.48 + var(--p) * .67)) scaleY(calc(.16 + var(--p) * .95));
+  opacity: clamp(0,calc((var(--p) - .34) * 2),.90);
+  mask-image: linear-gradient(to bottom,#000 0%,
+    #000 calc(-12% + var(--p) * 108%),transparent calc(4% + var(--p) * 109%));
+}
+
+/* Light on the actual paint preserves the brushwork in the cloth, leaves,
+   paper, and windows. Each mask follows its own source within the portrait. */
+.matariki-motion > .painted-light {
+  background: var(--portrait-ink) center / 100% 100% no-repeat;
+  mix-blend-mode: screen;
+}
+[data-motif="lake-memory"] > .painted-light {
+  mask-image: radial-gradient(ellipse 44% 15% at 80% 25%,#000 13%,transparent 94%);
+  opacity: calc(clamp(0,(var(--p) - .3) * 3,1) * (.83 - var(--p) * .49));
+}
+[data-motif="luminous-mantle"] > .painted-light {
+  --spread: clamp(0,calc((var(--p) - .06) * 1.22),1);
+  filter: contrast(1.38) saturate(1.18);
+  mask-image: radial-gradient(ellipse 77% 56% at 49% 21%,
+    transparent calc(-27% + var(--spread) * 146%),
+    #000 calc(-9% + var(--spread) * 146%),
+    #000 calc(3% + var(--spread) * 146%),
+    transparent calc(24% + var(--spread) * 146%));
+  opacity: .84;
+}
+[data-motif="river-garden"] > .painted-light {
+  filter: contrast(1.3) saturate(1.65);
+  --growth: clamp(0,calc((var(--p) - .21) * 1.45),1);
+  mask-image: radial-gradient(ellipse 48% 30% at 45% 68%,
+    #0007 calc(-33% + var(--growth) * 115%),
+    #000 calc(-9% + var(--growth) * 115%),
+    transparent calc(16% + var(--growth) * 115%));
+  opacity: calc(.84 - var(--p) * .42);
+}
+[data-motif="shared-meal"] > .painted-light {
+  filter: contrast(1.38) sepia(.23);
+  mask-image: radial-gradient(ellipse 58% 23% at 63% 73%,#000 0%,transparent 90%);
+  opacity: calc(.70 * sin(var(--p) * 180deg));
+}
+[data-motif="graphite-and-paper"] > .painted-light {
+  clip-path: polygon(35% 52%,56% 44%,79% 47%,79% 66%,54% 70%,34% 63%);
+  mask-image: linear-gradient(105deg,
+    transparent calc(-45% + var(--p) * 161%), #000 calc(-34% + var(--p) * 161%),
+    transparent calc(-17% + var(--p) * 161%));
+  opacity: .52;
+}
+[data-motif="lamplit-road"] > .painted-light {
+  filter: contrast(1.28) sepia(.54) saturate(1.8);
+  clip-path: polygon(69% 35%,100% 36%,100% 52%,79% 57%,77% 65%,67% 72%,77% 80%,97% 84%,100% 92%,75% 100%,34% 100%,54% 88%,59% 78%,54% 69%,66% 58%,68% 50%);
+  mask-image: linear-gradient(to top,transparent calc(-12% + 87% * var(--p)),
+    #000 calc(2% + 87% * var(--p)),#0007 calc(18% + 87% * var(--p)),transparent calc(35% + 87% * var(--p)));
+  opacity: .9;
+}
+
+/* In the establishing shot the sun is still behind the Southern Alps.
+   Develop the real mountain and its inverted reflection together, then let
+   the existing optical dissolve carry the distant lake into Noah's memory. */
+.film-shot[data-film-shot="lake"] .film-exposure::after {
+  content: ''; position: absolute; inset: 0;
+  background: url('/cinema/lake.webp') center / cover;
+  transform-origin: var(--shot-focus);
+  transform: scale(calc(1.025 + var(--cue) * var(--shot-zoom) * 2));
+  filter: sepia(.44) saturate(1.72) contrast(1.14);
+  mix-blend-mode: screen;
+  mask-image: radial-gradient(ellipse 57% 16% at 70% 55%, #000 11%,#000a 44%,transparent 99%);
+  opacity: calc(.13 + .80 * clamp(0,var(--cue) * 4.5,1));
+}
+
+/* One last star crosses the near sky. It dies out before the wide valley
+   has arrived. Gold still belongs to the single lantern at their feet. */
+.farewell-light { overflow: hidden; container-type: size; }
+.farewell-light .lantern-falloff {
+  position: absolute; left: -8%; top: 56%; width: 82%; height: 32%;
+  background: radial-gradient(ellipse 54% 38% at 37% 56%,#ffeaa78c,#ffc37951 28%,#e7934a21 58%,transparent 92%);
+  transform-origin: 37% 56%; transform: scale(calc(.35 + var(--p) * 1.40));
+  opacity: calc(.90 * sin(clamp(0,var(--p) * 1.8,1) * 180deg));
+}
+.farewell-light .passing-star {
+  --flight: clamp(0,calc((var(--p) - .09) * 2.4),1);
+  position: absolute; display: block; left: -30%; top: 16%; width: 27%; height: 2px;
+  transform: translate(calc(var(--flight) * 530%),calc(var(--flight) * 6.4cqh)) rotate(13deg);
+  opacity: clamp(0,calc(var(--flight) * 6),1);
+}
+.farewell-light .passing-star > i {
+  display: block; width: 100%; height: 100%;
+  background: linear-gradient(90deg,transparent,#b4c5ff3b 27%,#f4dcbdc4 82%,#fffae5);
+  mask-image: radial-gradient(ellipse 84% 67% at 79% 47%,#000 24%,transparent 98%);
+}
+.farewell-light .passing-star::after {
+  content: ''; position: absolute; right: -.5px; top: -1.3px; width: 4.5px; height: 4.5px;
+  border-radius: 50%; background: #fffae8; box-shadow: 0 0 5px #ffdeb5, 0 0 12px #cad8ff;
+}
+
+/* At the end of the pullback, light travels along the painted Milky Way
+   and finds the lamps on the valley floor. Both passes share the lens's
+   actual zoom and focal point, so the stars and villages stay registered. */
+.film-shot[data-film-shot="valley"] .film-exposure::before,
+.film-shot[data-film-shot="valley"] .film-exposure::after {
+  content: ''; position: absolute; z-index: 1; inset: 0;
+  background: url('/cinema/valley.webp') center / cover;
+  transform-origin: var(--shot-focus); transform: scale(calc(1.03 + (1 - var(--cue)) * .74));
+  mix-blend-mode: screen;
+}
+.film-shot[data-film-shot="valley"] .film-exposure::before {
+  --spreading: clamp(0,calc((var(--cue) - .45) * 2.03),1);
+  filter: contrast(1.33) saturate(1.38) brightness(1.24);
+  clip-path: polygon(0 29%,11% 21%,28% 12%,48% 3%,68% 0,100% 0,100% 4%,76% 9%,59% 11%,39% 16%,19% 26%,0 38%);
+  mask-image: linear-gradient(135deg,transparent calc(-26% + var(--spreading) * 86%),
+    #000 calc(-12% + var(--spreading) * 86%),
+    #0009 calc(10% + var(--spreading) * 86%),
+    transparent calc(29% + var(--spreading) * 86%));
+}
+.film-shot[data-film-shot="valley"] .film-exposure::after {
+  --travel: clamp(0,calc((var(--cue) - .50) * 2.0),1);
+  filter: contrast(1.55) sepia(.65) saturate(1.84);
+  clip-path: polygon(0 54%,100% 52%,100% 85%,61% 87%,46% 84%,29% 88%,0 87%);
+  mask-image: radial-gradient(ellipse 67% 43% at 51% 85%, transparent calc(-19% + var(--travel) * 104%),
+    #000 calc(-6% + var(--travel) * 104%),#0007 calc(7% + var(--travel) * 104%),transparent calc(23% + var(--travel) * 104%));
+  opacity: .81;
+}
