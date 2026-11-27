@@ -1,15 +1,7 @@
 import { expect, type Locator } from '@playwright/test'
-import { test, openBook, sceneAt } from './reader-harness'
+import { test, openBook } from './reader-harness'
+import { enterPainting, leavePainting, stagePose, waitForPose } from './playback-harness'
 
-// Place the painting on either side of the viewport centre using real document
-// scrolling. The same native scroll offset must give the same pose on return.
-async function place(stage: Locator, offset: number) {
-  await stage.evaluate(async (element, distance) => {
-    const rect = element.getBoundingClientRect()
-    scrollBy({ top: rect.top + rect.height / 2 - innerHeight / 2 + distance, behavior: 'instant' })
-    await new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done())))
-  }, offset)
-}
 function translation(image: Locator) {
   return image.evaluate(element => {
     const matrix = new DOMMatrixReadOnly(getComputedStyle(element).transform)
@@ -17,15 +9,15 @@ function translation(image: Locator) {
   })
 }
 
-test('seven painted sisters advance across the stationary ridge and rise above the valley in reverse as well', async ({ page }) => {
+test('the seven sisters run and rise against their own landscapes without another swipe', async ({ page }) => {
   await openBook(page)
   for (const [id, layer] of [[10, '.ridge-runners'], [11, '.ascent-figures']] as const) {
-    const stage = sceneAt(page, id).locator('.portrait-stage')
-    await place(stage, -135)
+    const stage = await enterPainting(page, id)
     await expect(stage.locator('.registered-pair')).toHaveAttribute('data-ready', 'true')
     const actors = stage.locator(layer)
     const before = await translation(actors)
-    await place(stage, 135)
+    const readingAt = await page.evaluate(() => scrollY)
+    await waitForPose(stage, .85)
     const after = await translation(actors)
     expect(before[1] - after[1]).toBeGreaterThan(id === 10 ? 12 : 56)
     if (id === 10) {
@@ -33,10 +25,14 @@ test('seven painted sisters advance across the stationary ridge and rise above t
       await expect(stage.locator('.distant-orion')).toHaveCSS('transform', 'none')
     }
     expect(await translation(stage.locator('.registered-pair > img').first())).toEqual([0, 0])
-    await place(stage, -135)
-    const back = await translation(actors)
-    expect(Math.abs(back[0] - before[0])).toBeLessThan(1)
-    expect(Math.abs(back[1] - before[1])).toBeLessThan(1)
+    expect(await page.evaluate(() => scrollY)).toBe(readingAt)
+    // A small reverse scroll keeps this visit. A full exit and re-entry is
+    // what starts the performance from its opening again.
+    await page.evaluate(() => scrollBy({ top: -32, behavior: 'instant' }))
+    expect(await stagePose(stage)).toBeGreaterThanOrEqual(.85)
+    await leavePainting(page, id)
+    await enterPainting(page, id)
+    expect(await stagePose(stage)).toBeLessThan(.33)
   }
 })
 
@@ -46,8 +42,7 @@ test('the original seven remain together while one registered layer is still una
   await page.route('**/motion/sisters-ascent.webp', async route => { await pending; await route.continue() })
   try {
     await openBook(page)
-    const stage = sceneAt(page, 11).locator('.portrait-stage')
-    await place(stage, 0)
+    const stage = await enterPainting(page, 11)
     const group = stage.locator('.sisters-ascent')
     await expect(group).toHaveAttribute('data-ready', 'false')
     await group.locator('.ascent-landscape').evaluate((img: HTMLImageElement) => img.decode())

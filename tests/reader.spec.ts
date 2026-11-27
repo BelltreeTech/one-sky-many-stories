@@ -1,3 +1,4 @@
+import { enterPainting } from './playback-harness';
 import { expect, type Response } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -207,15 +208,16 @@ test('fast forward, reverse and changing screen height leave the story readable'
   await expectNoOverflow(page);
 });
 
-test('native scroll moves the active camera and releases distant artwork', async ({ page }) => {
+test('the active camera moves while the reader rests and releases distant artwork', async ({ page }) => {
   await openBook(page);
-  const scene = await visitScene(page, 6);
-  await expectReadable(scene);
-  const camera = scene.locator('.camera');
+  const scene = sceneAt(page, 6);
+  const stage = await enterPainting(page, 6);
+  const camera = stage.locator('.camera');
   const transform = () => camera.evaluate(element => getComputedStyle(element).transform);
   const first = await transform();
-  await page.evaluate(() => window.scrollBy({ top: Math.round(innerHeight * 0.24), behavior: 'instant' }));
+  const y = await page.evaluate(() => scrollY);
   await expect.poll(transform).not.toBe(first);
+  expect(await page.evaluate(() => scrollY)).toBe(y);
   await expectReadable(await visitScene(page, 17));
   await expect(scene.locator('img.scene-image')).not.toHaveAttribute('src', /.+/);
   await expectReadable(await visitScene(page, 6));

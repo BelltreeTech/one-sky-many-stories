@@ -1,39 +1,29 @@
-import { expect } from '@playwright/test';
-import { openBook, test } from './reader-harness';
+import { expect } from '@playwright/test'
+import { openBook, test } from './reader-harness'
+import { enterPainting, waitForPose } from './playback-harness'
 
-test('near and far ripples flow in opposite directions, including on reverse scroll', async ({ page }) => {
-  await openBook(page);
-  const stage = page.locator('#scene-14 .portrait-stage');
-  await stage.scrollIntoViewIfNeeded();
-  await expect(stage.locator('[data-painted-detail="farther-ripple"] > i')).toHaveCount(1);
-  const positions = await stage.evaluate(async el => {
-    const near = el.querySelector<HTMLElement>('[data-painted-detail="ripple-near-the-shore"] > i')!;
-    const far = el.querySelector<HTMLElement>('[data-painted-detail="farther-ripple"] > i')!;
-    const { top, height } = el.getBoundingClientRect();
-    const start = scrollY + top - innerHeight;
-    const span = height + innerHeight;
-    const steps = Array.from({ length: 21 }, (_, i) => .23 + i * .027);
-    const samples = [];
-    for (const fraction of [...steps, ...[...steps].reverse()]) {
-      scrollTo({ top: start + span * fraction, behavior: 'instant' });
-      await new Promise(requestAnimationFrame);
-      await new Promise(requestAnimationFrame);
-      samples.push([near, far].map(band => new DOMMatrixReadOnly(getComputedStyle(band).transform).m41));
-    }
-    return samples;
-  });
-  let moving = 0;
-  for (let i = 1; i < positions.length; i++) {
-    const near = positions[i][0] - positions[i - 1][0];
-    const far = positions[i][1] - positions[i - 1][1];
-    if (Math.max(Math.abs(near), Math.abs(far)) < .06) continue;
-    moving++;
-    expect(near * far, 'both bands should travel in opposite directions at step ' + i).toBeLessThan(0);
+test('near and far ripples travel in opposite directions through the lake shot', async ({ page }) => {
+  await page.clock.install()
+  await openBook(page)
+  const stage = await enterPainting(page, 14)
+  await waitForPose(stage, .01)
+  const start = await page.evaluate(() => scrollY)
+  const positions: number[][] = []
+  for (let step = 0; step < 40; step++) {
+    await page.clock.runFor(100)
+    positions.push(await stage.evaluate(el => ['ripple-near-the-shore', 'farther-ripple'].map(name => {
+      const band = el.querySelector('[data-painted-detail="' + name + '"] > i')!
+      return new DOMMatrixReadOnly(getComputedStyle(band).transform).m41
+    })))
   }
-  expect(moving).toBeGreaterThan(20);
-  for (let i = 0; i < positions.length / 2; i++) {
-    const reverse = positions[positions.length - i - 1];
-    expect(reverse[0]).toBeCloseTo(positions[i][0], 2);
-    expect(reverse[1]).toBeCloseTo(positions[i][1], 2);
+  let moving = 0
+  for (let index = 1; index < positions.length; index++) {
+    const near = positions[index][0] - positions[index - 1][0]
+    const far = positions[index][1] - positions[index - 1][1]
+    if (Math.max(Math.abs(near), Math.abs(far)) < .06) continue
+    moving++
+    expect(near * far, 'opposing currents at step ' + index).toBeLessThan(0)
   }
-});
+  expect(moving).toBeGreaterThan(20)
+  expect(await page.evaluate(() => scrollY)).toBe(start)
+})

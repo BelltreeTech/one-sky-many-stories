@@ -42,11 +42,12 @@ test('a recovered portrait paints the sisters’ actual hair, sleeve and cloud e
   await expect(image).toHaveAttribute('data-fallback', 'false');
   await image.evaluate((el: HTMLImageElement) => el.decode());
   await scene.locator('.portrait-stage').evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await expect(scene.locator('.portrait-stage')).toHaveAttribute('data-playback', 'playing');
   const displacements = await scene.locator('.afterglow').evaluate(async el => {
     const edges = [...el.querySelectorAll('i')];
     const peak = edges.map(() => 0);
-    for (let i = 0; i < 26; i++) {
-      scrollBy({ top: 3, behavior: 'instant' });
+    const until = performance.now() + 1200;
+    while (performance.now() < until) {
       await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
       edges.forEach((edge, index) => {
         const style = getComputedStyle(edge);
