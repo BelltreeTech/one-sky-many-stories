@@ -6,7 +6,7 @@ import { ReadingHeader } from './components/ReadingHeader'
 import { ParticleEngine } from './engine/ParticleEngine'
 import { useMotionEnabled, useScrollController } from './engine/scrollController'
 import { preserveReadingHistory } from './engine/readingHistory'
-import { refreshScenes } from './engine/animationTimeline'
+import { scheduleSceneRefresh } from './engine/animationTimeline'
 import './styles/reader.css'
 import './styles/portrait.css'
 
@@ -39,21 +39,9 @@ function App() {
   const motion = useMotionEnabled()
   useLayoutEffect(preserveReadingHistory, [])
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>
     let mounted = true
-    const refreshAfterResize = () => {
-      clearTimeout(timer)
-      timer = setTimeout(() => { if (mounted) refreshScenes() }, 90)
-    }
-    void document.fonts.ready.then(() => { if (mounted) refreshScenes() })
-    window.addEventListener('resize', refreshAfterResize)
-    window.visualViewport?.addEventListener('resize', refreshAfterResize)
-    return () => {
-      mounted = false
-      clearTimeout(timer)
-      window.removeEventListener('resize', refreshAfterResize)
-      window.visualViewport?.removeEventListener('resize', refreshAfterResize)
-    }
+    void document.fonts.ready.then(() => { if (mounted) scheduleSceneRefresh() })
+    return () => { mounted = false }
   }, [])
   return <>
     <ReadingHeader current={current} total={story.scenes.length} />
