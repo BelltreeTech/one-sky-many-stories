@@ -79,12 +79,15 @@ export function PortraitScene({ scene, near, animate, current }: { scene: Scene;
   const bothFailed = fallback && unavailableAt === attempt
   const src = imageURL(filename, fallback && unavailableAt < 0 ? 0 : attempt)
   const stage = useRef<HTMLSpanElement>(null)
-  const animated = animate && near && !fallback && loadedSource === src
+  // The separate telescope can decode first. Its aperture already follows the
+  // reading position while the main illustration is still loading.
+  const positionCamera = animate && near && !fallback
+  const animateDetails = positionCamera && loadedSource === src
   useLayoutEffect(() => {
-    if (!animated) return
+    if (!positionCamera) return
     const section = stage.current!.closest<HTMLElement>('[data-scene]')!
     return attachPortraitTimeline(section, scene.id, true)
-  }, [animated, scene.id])
+  }, [positionCamera, scene.id])
   const chapter = chapters[scene.chapter - 1]
   const opener = (scene.id - 1) % 4 === 0
   const first = scene.id === 1
@@ -103,7 +106,7 @@ export function PortraitScene({ scene, near, animate, current }: { scene: Scene;
             if (fallback) setUnavailableAt(attempt)
             else markFailed()
           }} />
-        {animated && <IllustrationMotion id={scene.id} source={src} />}
+        {animateDetails && <IllustrationMotion id={scene.id} source={src} />}
         {scene.id === 4 && !fallback && <DecodedExposure file="before-memory" className="registered-exposure memory-sky" near={near} />}
         {scene.id === 10 && !fallback && <DecodedExposure file="ridge" className="registered-exposure ridge-bridge" near={near} />}
         {scene.id === 11 && <span className="afterglow" data-wind="still" hidden={!near || fallback}
@@ -112,7 +115,7 @@ export function PortraitScene({ scene, near, animate, current }: { scene: Scene;
         </span>}
       </span>
     </span>
-    {current && <ParticleEngine running={animated && ![7, 8, 11, 12, 14, 15].includes(scene.id)} />}
+    {current && <ParticleEngine running={animateDetails && ![7, 8, 11, 12, 14, 15].includes(scene.id)} />}
   </span>
 
   return <div className={'portrait-story' + (asksBeforeArt ? ' quest' : '')}>
