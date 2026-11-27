@@ -190,3 +190,33 @@ test('a delayed frame timestamp still lets the brief paper reflection return to 
   expect(settled.first).toBeLessThan(1600)
   expect(settled.last).toBe(0)
 })
+
+test('the book appears when an edge-touching canvas first gains visible area', async ({ page }) => {
+  // Position the book outside the viewport before its canvas is created.
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await openBook(page)
+  const stage = sceneAt(page, 12).locator('.portrait-stage')
+  await placeBook(stage, .85)
+  // Keep fractional model-specific camera scales from rounding the exact
+  // boundary. Only the geometry of the observer target matters to this test.
+  await page.addStyleTag({ content: '#scene-12 .portrait-camera { transform: none !important; }' })
+  await stage.evaluate(el => { el.style.transform = 'translateY(50vh)' })
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await expect(stage.locator('.leo-book img')).toHaveAttribute('data-decoded', 'true')
+
+  const enter = (gap: number) => stage.evaluate(async (element, offset) => {
+    const canvas = element.querySelector<HTMLCanvasElement>('.leo-book canvas')!
+    const shift = new DOMMatrix(getComputedStyle(element).transform).m42
+    const edge = shift + innerHeight - canvas.getBoundingClientRect().top
+    element.style.transform = 'translateY(' + (edge + offset) + 'px)'
+    await new Promise(requestAnimationFrame)
+    await new Promise(requestAnimationFrame)
+    const rect = canvas.getBoundingClientRect()
+    return Math.max(0, Math.min(innerHeight, rect.bottom) - Math.max(0, rect.top))
+  }, gap)
+  expect(await enter(6)).toBe(0)
+  expect(await enter(0)).toBe(0)
+  expect((await visibleBookPixels(stage)).painted).toBe(0)
+  expect(await enter(-8)).toBe(8)
+  await expect.poll(async () => (await visibleBookPixels(stage)).paper).toBeGreaterThan(1800)
+})
