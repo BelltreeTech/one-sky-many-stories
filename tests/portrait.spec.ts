@@ -157,26 +157,33 @@ test.describe('portrait discoveries', () => {
   });
 
   test('the sisters come to rest before the hair, sleeves and cloud at a fixed reading position', async ({ page }) => {
+    // Sample the release beat at known film times. A loaded CI compositor can
+    // legitimately present only two real frames during this short interval.
+    await page.clock.install({ time: new Date('2025-02-01T00:00:00Z') });
+    await page.clock.pauseAt(new Date('2025-02-01T00:10:00Z'));
     await openBook(page);
     const stage = sceneAt(page, 11).locator('.portrait-stage');
     await stage.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
-    await expect(stage).toHaveAttribute('data-playback', 'playing');
-    const samples = await stage.evaluate(async art => {
-      const camera = art.querySelector('.camera')!;
-      const wind = art.querySelector('.afterglow')!;
-      const edges = [...wind.querySelectorAll('i')];
-      const records = [];
-      do {
-        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-        records.push({ y: scrollY, camera: getComputedStyle(camera).transform,
-          landed: Number(art.style.getPropertyValue('--cinematic-progress')) === 1,
-          offsets: edges.map(edge => {
-            const m = new DOMMatrixReadOnly(getComputedStyle(edge).transform);
-            return Math.hypot(m.m41, m.m42);
-          }) });
-      } while (art.dataset.playback === 'playing');
-      return records;
-    });
+    await expect.poll(async () => {
+      await page.clock.runFor(16);
+      return stage.getAttribute('data-playback');
+    }).toBe('playing');
+    const samples = [];
+    for (let i = 0; i < 46; i++) {
+      await page.clock.runFor(120);
+      const sample = await stage.evaluate(art => ({
+        state: art.dataset.playback, y: scrollY,
+        camera: getComputedStyle(art.querySelector('.camera')!).transform,
+        landed: Number(art.style.getPropertyValue('--cinematic-progress')) === 1,
+        offsets: [...art.querySelectorAll('.afterglow i')].map(edge => {
+          const m = new DOMMatrixReadOnly(getComputedStyle(edge).transform);
+          return Math.hypot(m.m41, m.m42);
+        }),
+      }));
+      samples.push(sample);
+      if (sample.state === 'complete') break;
+    }
+    expect(samples.at(-1)?.state).toBe('complete');
     expect(new Set(samples.map(sample => sample.y)).size).toBe(1);
     expect(new Set(samples.map(sample => sample.camera)).size).toBeGreaterThan(3);
     const tail = samples.filter(sample => sample.landed);
