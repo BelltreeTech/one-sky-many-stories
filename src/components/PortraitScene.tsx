@@ -5,7 +5,7 @@ import { attachPortraitTimeline, attachTelescopeAperture } from '../engine/portr
 import { CinematicShot, SceneWeather, warmEstablishingShot } from './CinematicShot'
 import { MythMotion } from './MythMotion'
 import { MatarikiMotion } from './MatarikiMotion'
-import { HillsideMotion } from './HillsideMotion'
+import { HillsideMotion, OpeningMeteor } from './HillsideMotion'
 import { IllustrationMotion } from './IllustrationMotion'
 import { portraitBeats } from '../engine/typographyReveal'
 import { portraitDimensions, portraitDirections, portraitFile } from '../data/portrait'
@@ -128,6 +128,7 @@ export function PortraitScene({ scene, near, animate, current }: { scene: Scene;
           {scene.id >= 13 && <MatarikiMotion id={scene.id} />}
           <SceneWeather id={scene.id} />
           <CinematicShot id={scene.id} source={src} />
+          {first && <OpeningMeteor />}
         </span>}
       </span>
     </span>

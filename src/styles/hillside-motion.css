@@ -6,7 +6,7 @@
 .hillside-motion span, .hillside-motion i { display: block; position: absolute; }
 .paint-definitions { width: 0; height: 0; position: absolute; }
 .shooting-path {
-  left: 13%; top: 31%; width: 68%; height: 1px;
+  left: 23%; top: 23%; width: 67%; height: 1px;
   transform: rotate(-19deg) translateX(calc(var(--p) * 10cqw));
   transform-origin: 15% 50%;
 }

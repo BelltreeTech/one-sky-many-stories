@@ -16,9 +16,14 @@ function HandLantern() {
   </span>
 }
 
-function SkyStreak() {
-  return <>
+export function OpeningMeteor() {
+  return <span className="hillside-motion opening-sky" aria-hidden="true">
     <span className="shooting-path"><i className="shooting-head" /></span>
+  </span>
+}
+
+function LanternLight() {
+  return <>
     <span className="lantern-cast" />
     <HandLantern />
   </>
@@ -76,7 +81,7 @@ function PaintedSweep({ id }: { id: number }) {
 
 export function HillsideMotion({ id }: { id: number }) {
   return <span className="hillside-motion" data-cinematic-scene={id} aria-hidden="true">
-    {id===1 && <SkyStreak />}
+    {id===1 && <LanternLight />}
     {(id===2 || id===5) && <Windborne flowers={id===5} />}
     {(id===3 || id===4 || id===6) && <PaintedSweep id={id} />}
     {id===3 && <i className="gaze-light"/>}
