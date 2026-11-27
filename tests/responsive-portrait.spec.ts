@@ -119,10 +119,42 @@ for (const [index, shape] of ['reference viewport', 'landscape viewport', 'resiz
   });
 }
 
-test('all twenty small previews keep the composition, description and text of their full portrait', async ({ page }) => {
+// Watch the actual star paint while the fallback illustration is on screen.
+// The particle engine normally draws about every 65ms.
+function observePreview(scene: Locator) {
+  return scene.evaluate(async section => {
+    const prototype = CanvasRenderingContext2D.prototype;
+    const fill = prototype.fill;
+    let starFills = 0, stayed = true, running = false, frames = 0;
+    prototype.fill = new Proxy(fill, { apply(target, context: CanvasRenderingContext2D, args) {
+      if (context.canvas.classList.contains('starlight')) starFills++;
+      return Reflect.apply(target, context, args);
+    } });
+    try {
+      const until = performance.now() + 160;
+      do {
+        await new Promise(requestAnimationFrame);
+        const rect = section.getBoundingClientRect();
+        const current = document.querySelector('[data-current-scene]')?.getAttribute('data-current-scene');
+        stayed &&= rect.top <= innerHeight / 2 && rect.bottom >= innerHeight / 2 && current === section.getAttribute('data-scene');
+        running ||= section.querySelector('.starlight[data-running="true"]') !== null;
+        frames++;
+      } while (frames < 3 || performance.now() < until);
+      return { stayed, running, starFills };
+    } finally { prototype.fill = fill; }
+  });
+}
+
+test('all twenty small previews keep the composition, description and text of their full portrait', async ({ page, context }) => {
   test.setTimeout(150_000);
-  await openBook(page);
-  const descriptions = await page.locator('img.scene-image').evaluateAll(images => images.map(img => (img as HTMLImageElement).alt));
+  // A same-URL reload can restore the first document's reading position
+  // after WebKit has already scrolled the second document to the next scene.
+  const reference = await context.newPage();
+  let descriptions: string[];
+  try {
+    await openBook(reference);
+    descriptions = await reference.locator('img.scene-image').evaluateAll(images => images.map(img => (img as HTMLImageElement).alt));
+  } finally { await reference.close(); }
   const failed = new Set<string>();
   await page.route(/\/portrait\/\d{2}\.webp(?:\?.*)?$/, route => {
     failed.add(new URL(route.request().url()).pathname);
@@ -137,7 +169,7 @@ test('all twenty small previews keep the composition, description and text of th
     await expect(image).toHaveAttribute('src', deployPath + 'portrait/preview/' + name);
     await expect(scene.locator('[data-illustration-motion]')).toHaveCount(0);
     await expect(scene.locator('.camera')).toHaveCSS('transform', 'none');
-    await expect(scene.locator('.starlight')).toHaveAttribute('data-running', 'false');
+    expect(await observePreview(scene), 'Preview stays at scene ' + id + ' without painting stars').toEqual({ stayed: true, running: false, starFills: 0 });
     const full = await readFile('public/portrait/' + name);
     const measured = await image.evaluate(async (small: HTMLImageElement, bytes) => {
       const original = new Image();
