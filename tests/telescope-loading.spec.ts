@@ -67,7 +67,7 @@ test('the telescope holds its view through a hillside preview and pending full r
     const scene = page.locator('#scene-08'), lens = scene.locator('.lens-field');
     const art = scene.locator('.scene-image'), camera = scene.locator('.camera');
     await lens.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
-    await expect(lens.locator('img')).toHaveAttribute('data-ready', 'true');
+    await expect(lens.locator('.telescope-view')).toHaveAttribute('data-ready', 'true');
     const aperture = () => lens.evaluate(el => Number(el.style.getPropertyValue('--aperture') || '1'));
     await expect(lens).toHaveAttribute('data-playback', 'complete');
     const held = await aperture();
