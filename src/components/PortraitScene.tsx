@@ -3,6 +3,9 @@ import { asset, chapters, type Scene } from '../data/edition'
 import { ParticleEngine } from '../engine/ParticleEngine'
 import { attachPortraitTimeline, attachTelescopeAperture } from '../engine/portraitTimeline'
 import { CinematicShot, SceneWeather, warmEstablishingShot } from './CinematicShot'
+import { FieldNotesMotion } from './FieldNotesMotion'
+import { Observatory } from './Observatory'
+import { NightfallMotion } from './NightfallMotion'
 import { SkyPassage } from './SkyPassage'
 import { MythMotion } from './MythMotion'
 import { MatarikiMotion } from './MatarikiMotion'
@@ -129,6 +132,8 @@ export function PortraitScene({ scene, near, animate, current }: { scene: Scene;
           {scene.id >= 13 && <MatarikiMotion id={scene.id} source={src} />}
           <SceneWeather id={scene.id} />
           <CinematicShot id={scene.id} source={src} />
+          {(scene.id === 6 || scene.id === 18) && <FieldNotesMotion id={scene.id} source={src} />}
+          {(scene.id === 3 || scene.id === 4) && <NightfallMotion id={scene.id} source={src} />}
           {(scene.id === 1 || scene.id === 5) && <SkyPassage id={scene.id} />}
           {first && <OpeningMeteor />}
         </span>}
@@ -149,6 +154,7 @@ export function PortraitScene({ scene, near, animate, current }: { scene: Scene;
         {scene.id === 8 && index === 1 && <span ref={lens} className="lens-field">
           <DecodedExposure file="telescope" className="telescope-view" near={near}
             alt="Through the eyepiece, a few bright stars stand out among many fainter points of light." />
+          {motionActive && <Observatory />}
         </span>}
         <span className="beat-text">{part}</span>
         {!index && asksBeforeArt && art}

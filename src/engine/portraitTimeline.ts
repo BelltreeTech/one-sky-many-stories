@@ -19,11 +19,18 @@ const shotLength: Partial<Record<number, number>> = {
 
 export function attachTelescopeAperture(lens: HTMLElement) {
   const stop = playOnEntry(lens, {
-    duration: 2600, focus: .5, focusX: .46,
+    duration: 4800, focus: .5, focusX: .46,
     ready: () => lens.querySelector('.telescope-view')?.getAttribute('data-ready') === 'true',
-    paint: progress => lens.style.setProperty('--aperture', String(between(progress, 0, 1))),
+    paint(progress) {
+      lens.style.setProperty('--aperture', String(between(progress, 0, 1)))
+      lens.style.setProperty('--optical-time', String(+progress.toFixed(5)))
+    },
   })
-  return () => { stop(); lens.style.removeProperty('--aperture') }
+  return () => {
+    stop()
+    lens.style.removeProperty('--aperture')
+    lens.style.removeProperty('--optical-time')
+  }
 }
 
 export function attachPortraitTimeline(scene: HTMLElement, id: number) {
