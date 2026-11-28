@@ -43,7 +43,7 @@ test('one entry takes the reader through the eyepiece and the dust, then leaves 
       try {
         uncovered = await frame();
       } finally {
-        await sheet.evaluate(el => el.remove());
+        await sheet.evaluate(el => el.parentNode?.removeChild(el));
       }
       const difference = await changedPixels(page, painted, uncovered, at < 1 ? 12 : 0);
       if (at < 1) {
