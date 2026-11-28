@@ -1,0 +1,71 @@
+.court-blinds, .notebook-memory, .notebook-skyward {
+  position: absolute; display: block; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden;
+  --cue: var(--cinematic-progress,0);
+}
+
+/* Stay in register with the original insert as the lens pulls back from the
+   brush. The hem on each blind lifts at its own pace and uncovers the stars. */
+.court-blinds {
+  --insert: clamp(0,calc(1 - var(--cue) * 3.85),1);
+  transform-origin: 33% 68%;
+  transform: scale(calc(1 + var(--insert) * 1.2)) rotate(calc(var(--insert) * -2deg));
+}
+.court-blind { transform-box: view-box; }
+.court-left {
+  --drop: clamp(0,calc((.83 - var(--cue)) * 1.7),1);
+  transform: translateY(calc(var(--drop) * 18%)); opacity: clamp(0,calc(var(--drop) * 4),1);
+}
+.court-right {
+  --drop: clamp(0,calc((.90 - var(--cue)) * 1.62),1);
+  transform: translateY(calc(var(--drop) * 27%)); opacity: clamp(0,calc(var(--drop) * 4),1);
+}
+.court-star-glow {
+  opacity: clamp(0,min(calc((var(--cue) - .58) * 3.9),calc((1 - var(--cue)) * 3.6)),1);
+}
+
+/* Film the live folio itself: its moving leaf, drawing hand, and the three
+   washes share a lens. Finish at the exact size and framing of the plate. */
+.portrait-sheet:has(.notebook-memory) {
+  --pull: clamp(0,calc((var(--cinematic-progress,0) - .06) * 1.35),1);
+  --wide: calc(var(--pull) * var(--pull) * (3 - 2 * var(--pull)));
+  transform-origin: 54% 55%;
+  transform: scale(calc(1.68 - .68 * var(--wide)));
+}
+.notebook-memory[data-arrival="late"] { animation: notebook-pigment-develop .28s ease-out both; }
+@keyframes notebook-pigment-develop { from { opacity: 0; } to { opacity: 1; } }
+.notebook-pigment { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.notebook-wash {
+  position: absolute; display: block; visibility: hidden;
+  background-image: var(--watercolours); background-size: 300% 100%; background-repeat: no-repeat;
+  transform: rotate(var(--angle)) scale(calc(1.08 - var(--cue) * .18));
+}
+.notebook-memory[data-ready="true"] .notebook-wash { visibility: visible; }
+.wash-subaru {
+  left: 31.6%; top: 49.6%; width: 22%; height: 12.8%; --angle: 8deg;
+  background-position: left; opacity: clamp(0,calc((.61 - var(--cue)) * 3.8),.90);
+}
+.wash-sisters {
+  left: 56%; top: 47.2%; width: 21.5%; height: 9.8%; --angle: -12deg;
+  background-position: center;
+  opacity: clamp(0,min(calc((var(--cue) - .15) * 4.4),calc((.79 - var(--cue)) * 3.7)),.92);
+}
+.wash-matariki {
+  left: 55.3%; top: 54.7%; width: 21.2%; height: 10.9%; --angle: -7deg;
+  background-position: right;
+  opacity: clamp(0,min(calc((var(--cue) - .30) * 4.2),calc((.92 - var(--cue)) * 4.8)),.92);
+}
+.notebook-skyward { opacity: 0; }
+.notebook-memory[data-ready="true"] .notebook-skyward { opacity: 1; }
+.notebook-trail {
+  --travel: clamp(0,calc((var(--cue) - .37) * 1.85),1);
+  stroke-width: 1.7; stroke-linecap: round;
+  stroke-dasharray: .19 1.5; stroke-dashoffset: calc(.19 - var(--travel) * 1.19);
+  opacity: clamp(0,min(calc(var(--travel) * 6),calc((1 - var(--travel)) * 6)),.92);
+}
+.notebook-last-star {
+  opacity: clamp(0,min(calc((var(--cue) - .78) * 9),calc((1 - var(--cue)) * 7)),.85);
+}
+@media (prefers-reduced-motion: reduce) {
+  .court-blinds, .notebook-memory { display: none; }
+  .portrait-sheet:has(.notebook-memory) { transform: none; }
+}

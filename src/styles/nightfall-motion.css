@@ -1,0 +1,93 @@
+.nightfall-film {
+  --time: var(--cinematic-progress, 0);
+  position: absolute; inset: 0; display: block; overflow: clip; pointer-events: none;
+}
+.nightfall-film > *, .starward-camera > *, .memory-air > * {
+  position: absolute; display: block;
+}
+
+/* The same continuous painted frame travels from Luna's fingertip to the
+   cluster. It meets the main illustration exactly before it dissolves. */
+[data-nightfall="starward"] {
+  opacity: clamp(0,calc((1 - var(--time)) * 9),1);
+}
+.starward-camera, .galactic-light {
+  inset: 0; background: var(--nightfall-plate) center / 100% 100% no-repeat;
+}
+.starward-camera {
+  transform-origin: 0 0;
+  animation: trace-the-pointing-hand 1s cubic-bezier(.37,.01,.21,1) both paused;
+  animation-delay: calc(-1s * var(--time));
+}
+@keyframes trace-the-pointing-hand {
+  0% { transform: translate3d(-78%,-56%,0) scale(1.91); }
+  39% { transform: translate3d(-99%,-15%,0) scale(2.23); }
+  50% { transform: translate3d(-90%,-12%,0) scale(2.12); }
+  91%, 100% { transform: translate3d(0,0,0) scale(1); }
+}
+.galactic-light {
+  /* These vertices follow the existing milky band between the branches. */
+  clip-path: polygon(0 26%,15% 17%,40% 8%,60% 0,100% 0,100% 4%,71% 9%,48% 15%,29% 21%,8% 30%,0 31%);
+  --sweep: clamp(0,calc((var(--time) - .15) * 1.7),1);
+  mask-image: linear-gradient(113deg,
+    transparent calc(-31% + var(--sweep) * 143%),
+    #000a calc(-14% + var(--sweep) * 143%),#000 calc(-2% + var(--sweep) * 143%),
+    transparent calc(22% + var(--sweep) * 143%));
+  mix-blend-mode: screen;
+}
+.cluster-halo {
+  /* Brightest upper star in the original 992 × 1586 painting. */
+  left: 73.59%; top: 21.25%; width: 40%; height: 9%; transform: translate(-50%,-50%) rotate(-13deg);
+  --glow: clamp(0,min(calc((var(--time) - .20) * 3.5),calc((.87 - var(--time)) * 3)),1);
+  opacity: var(--glow);
+  background: radial-gradient(ellipse 46% 1.6% at 50% 50%,#fffee7,#bbd6ff86 38%,transparent),
+    radial-gradient(ellipse 1.5% 36% at 50% 50%,#fffae9,#d4e4ff52 43%,transparent),
+    radial-gradient(ellipse closest-side,#c5d4ff65,#9cb7fe20 31%,transparent);
+}
+
+/* A second landscape develops only in the open sky. The mask follows the
+   head of the central traveler, keeping his outline and the dialogue clear. */
+.memory-air {
+  inset: 0;
+  mask-image: linear-gradient(180deg,#000 0%,#000 16%,transparent 26%),
+    radial-gradient(ellipse 28% 15% at 87% 16%,#000 17%,#000b 60%,transparent 98%);
+}
+.snow-country {
+  width: 112%; height: 56%; right: -8%; top: -13%;
+  transform-origin: 82% 49%;
+  mask-image: radial-gradient(ellipse 71% 61% at 64% 45%,#000 36%,#000e 57%,transparent 98%);
+  animation: remember-the-mountains 1s cubic-bezier(.34,.03,.24,1) both paused;
+  animation-delay: calc(-1s * var(--time));
+}
+.snow-country img {
+  width: 100%; height: 100%; display: block; object-fit: cover; opacity: 0;
+  /* Follow the snowy ridge down toward the little house before it meets
+     the porch in Luna's memory. Both are details of the same distant view. */
+  --toward-house: clamp(0,calc((var(--time) - .38) * 2.4),1);
+  object-position: 50% calc(22% + var(--toward-house) * 57%);
+}
+.snow-country img[data-ready="true"] { opacity: 1; transition: opacity .22s ease-out; }
+@keyframes remember-the-mountains {
+  0%,9% { opacity: 0; transform: scale(.33) translate3d(8%,-3%,0); }
+  35% { opacity: .96; transform: scale(1.04) translate3d(0,0,0); }
+  51% { opacity: .98; transform: scale(1.09) translate3d(-2%,1%,0); }
+  85%,100% { opacity: 0; transform: scale(.23) translate3d(9%,1%,0); }
+}
+.memory-lantern {
+  left: 16%; top: 65%; width: 63%; height: 28%;
+  --warmth: clamp(0,min(calc((var(--time) - .02) * 4),calc((.58 - var(--time)) * 3)),1);
+  opacity: var(--warmth); transform: scale(calc(.38 + var(--warmth) * .83));
+  background: radial-gradient(ellipse closest-side,#ffebc16b,#ffbd603e 29%,#ffb87014 57%,transparent);
+}
+
+/* On the open hill, keep the passing cloud at the horizon. Preserving the
+   texture's proportions leaves clear space around the counted star cluster. */
+.portrait-scene:is([data-scene="3"],[data-scene="4"]) .cloud-plane i {
+  inset: auto; left: -5%; top: -30%; width: 75%; height: auto; aspect-ratio: 1.8;
+  opacity: clamp(0,calc((.94 - var(--cue)) * .58),.38);
+  mask-image: radial-gradient(ellipse 53% 30% at 50% 52%,#000 15%,#000c 62%,transparent);
+}
+.portrait-scene[data-scene="3"] .gaze-light { opacity: clamp(0,calc((1 - var(--p)) * 3),1); }
+.portrait-scene[data-scene="4"] .memory-window { opacity: clamp(0,calc((var(--p) - .26) * 3),1); }
+
+@media (prefers-reduced-motion: reduce) { .nightfall-film { display:none; } }
